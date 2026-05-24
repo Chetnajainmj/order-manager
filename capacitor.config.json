@@ -1,0 +1,13 @@
+{
+  "appId": "co.hotwax.ordermanager",
+  "appName": "Order Manager",
+  "bundledWebRuntime": false,
+  "npmClient": "npm",
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  },
+  "cordova": {}
+}

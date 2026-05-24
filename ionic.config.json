@@ -1,0 +1,8 @@
+{
+  "name": "orderManager",
+  "appId": "co.hotwax.ordermanager",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue"
+}

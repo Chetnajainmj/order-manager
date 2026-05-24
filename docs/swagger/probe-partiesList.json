@@ -1,0 +1,14 @@
+[
+  {
+    "partyId": "_NA_",
+    "partyTypeId": "PERSON",
+    "groupName": "Default"
+  },
+  {
+    "partyId": "10000",
+    "partyTypeId": "PERSON",
+    "statusId": "PARTY_ENABLED",
+    "firstName": "Shopify",
+    "lastName": "Integration"
+  }
+]
