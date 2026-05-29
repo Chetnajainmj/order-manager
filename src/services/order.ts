@@ -1,5 +1,4 @@
-import { DateTime } from 'luxon';
-import { api } from '@common';
+import { api, commonUtil, useSolrSearch } from '@common';
 import {
   allDocs,
   buildRelatedDataDocumentPayload,
@@ -7,8 +6,7 @@ import {
   mergeOrderNoteDocs,
   normalizeOrderNoteDoc,
   normalizeOrderStatusDoc,
-  normalizeOrderCollectionResponse,
-  orderLookupFields,
+  normalizeOrderDoc,
   orderNoteLookupFields,
   orderRoleLookupFields,
   noteDataLookupFields,
@@ -36,60 +34,168 @@ import type {
 
 export interface OrderSearchParams {
   queryString?: string;
-  status?: string;
+  status?: string | string[];
   channel?: string;
   productStoreId?: string;
   dateFrom?: string;
   dateThru?: string;
+  sort?: string;
   pageSize?: number;
   pageIndex?: number;
 }
 
+const orderSolrFields = [
+  'orderId',
+  'orderName',
+  'externalOrderId',
+  'externalId',
+  'orderDate',
+  'orderStatusId',
+  'orderStatusDesc',
+  'statusId',
+  'customerPartyId',
+  'customerPartyName',
+  'customerFirstName',
+  'customerLastName',
+  'customerName',
+  'customerEmailId',
+  'customerPhoneNumber',
+  'partyId',
+  'salesChannelEnumId',
+  'salesChannelDesc',
+  'productStoreId',
+  'productStoreName',
+  'grandTotal',
+  'currencyUom',
+  'presentmentCurrencyUom',
+  'shipmentMethodTypeId',
+  'shipmentMethodDesc',
+  'shipmentId',
+  'returnId',
+  'priority'
+];
+
+const orderSearchQueryFields = [
+  'orderId^20',
+  'orderName^20',
+  'externalOrderId^15',
+  'externalId^15',
+  'search_orderIdentifications^15',
+  'customerPartyId^10',
+  'customerPartyName^12',
+  'customerName^12',
+  'customerEmailId^10',
+  'customerPhoneNumber^10',
+  'productId^6',
+  'productName^6',
+  'internalName^6',
+  'parentProductName^4',
+  'goodIdentifications^6',
+  'orderNotes^4',
+  'salesChannelDesc',
+  'productStoreName',
+  'shipmentId',
+  'returnId'
+];
+
 export function buildOrderLookupPayload(params: OrderSearchParams = {}) {
-  const customParametersMap: Record<string, string> = {
-    orderTypeId: 'SALES_ORDER'
+  const viewSize = Number(params.pageSize ?? 50);
+  const viewIndex = Number(params.pageIndex ?? 0);
+  const searchTerm = params.queryString?.trim() ?? '';
+  const filters = ['docType: ORDER', 'orderTypeId: SALES_ORDER'];
+  const statusIds = selectedStatuses(params.status);
+
+  if (statusIds.length === 1) filters.push(`orderStatusId:${escapeSolrValue(statusIds[0])}`);
+  if (statusIds.length > 1) filters.push(`orderStatusId:(${statusIds.map(escapeSolrValue).join(' OR ')})`);
+  if (params.channel && params.channel !== 'All') filters.push(`salesChannelEnumId: ${escapeSolrValue(params.channel)}`);
+  if (params.productStoreId && params.productStoreId !== 'All') filters.push(`productStoreId: ${escapeSolrValue(params.productStoreId)}`);
+
+  const dateFilter = buildOrderDateSolrFilter(params.dateFrom, params.dateThru);
+  if (dateFilter) filters.push(dateFilter);
+
+  const payload = {
+    json: {
+      params: {
+        sort: params.sort ?? 'orderDate desc',
+        rows: viewSize,
+        start: viewSize * viewIndex,
+        group: true,
+        'group.field': 'orderId',
+        'group.limit': 10000,
+        'group.ngroups': true,
+        'q.op': 'AND',
+        fl: orderSolrFields.join(' ')
+      } as Record<string, any>,
+      query: '*:*',
+      filter: filters
+    }
   };
-  const searchTerm = params.queryString?.trim();
 
   if (searchTerm) {
-    if (searchTerm.startsWith('#')) {
-      customParametersMap.orderName = searchTerm;
-    } else if (searchTerm.includes('@')) {
-      customParametersMap.emailAddress = searchTerm;
-    } else if (isPhoneSearch(searchTerm)) {
-      customParametersMap.contactNumber = searchTerm;
-    } else if (isInternalOrderId(searchTerm)) {
-      customParametersMap.hcOrderId = searchTerm;
-    } else {
-      customParametersMap.externalId = searchTerm;
-    }
+    payload.json.params.defType = 'edismax';
+    payload.json.params.qf = orderSearchQueryFields.join(' ');
+    payload.json.query = buildOrderSearchQuery(searchTerm);
   }
 
-  if (params.status && params.status !== 'All') customParametersMap.statusId = params.status;
-  if (params.channel && params.channel !== 'All') customParametersMap.salesChannelEnumId = params.channel;
-  if (params.productStoreId && params.productStoreId !== 'All') customParametersMap.productStoreId = params.productStoreId;
-  if (params.dateFrom) customParametersMap.orderDate_from = toStartOfDayMillis(params.dateFrom);
-  if (params.dateThru) customParametersMap.orderDate_thru = toEndOfDayMillis(params.dateThru);
-
-  return {
-    dataDocumentId: defaultDataDocuments.orderLookup,
-    format: 'json',
-    fieldsToSelect: orderLookupFields,
-    customParametersMap,
-    orderByField: '-orderDate',
-    pageSize: Number(params.pageSize ?? 50),
-    pageIndex: Number(params.pageIndex ?? 0)
-  };
+  return payload;
 }
 
 export async function searchOrders(params: OrderSearchParams = {}): Promise<OrderSearchResult> {
-  const response = await api({
-    url: 'oms/dataDocumentView',
-    method: 'post',
-    data: buildOrderLookupPayload(params)
-  });
+  const response = await useSolrSearch().runSolrQuery(buildOrderLookupPayload(params));
 
-  return normalizeOrderCollectionResponse(response.data);
+  if (commonUtil.hasError(response)) return Promise.reject(response.data);
+
+  return normalizeOrderSolrResponse(response.data);
+}
+
+function normalizeOrderSolrResponse(data: any): OrderSearchResult {
+  const groupedOrders = data?.grouped?.orderId;
+
+  if (groupedOrders?.groups?.length) {
+    return {
+      orders: groupedOrders.groups
+        .map((group: any) => group?.doclist?.docs?.[0])
+        .filter(Boolean)
+        .map(normalizeOrderDoc),
+      total: Number(groupedOrders.ngroups ?? groupedOrders.matches ?? groupedOrders.groups.length)
+    };
+  }
+
+  const docs = allDocs(data);
+  return {
+    orders: docs.map(normalizeOrderDoc),
+    total: Number(data?.response?.numFound ?? docs.length)
+  };
+}
+
+function buildOrderSearchQuery(searchTerm: string) {
+  const escapedTerm = escapeSolrValue(searchTerm);
+  const tokens = searchTerm
+    .split(/\s+/)
+    .map((token) => escapeSolrValue(token))
+    .filter(Boolean);
+
+  if (!tokens.length) return '*:*';
+
+  return `(${tokens.map((token) => `${token}*`).join(' OR ')} OR "${escapedTerm}"^100)`;
+}
+
+function buildOrderDateSolrFilter(dateFrom?: string, dateThru?: string) {
+  if (!dateFrom && !dateThru) return '';
+
+  const fromDate = dateFrom ? `${dateFrom.split('T')[0]}T00:00:00Z` : '*';
+  const thruDate = dateThru ? `${dateThru.split('T')[0]}T23:59:59Z` : '*';
+
+  return `orderDate: [${fromDate} TO ${thruDate}]`;
+}
+
+function selectedStatuses(status?: string | string[]) {
+  const statuses = Array.isArray(status) ? status : [status];
+  return [...new Set(statuses.filter((statusId): statusId is string => Boolean(statusId && statusId !== 'All')))];
+}
+
+function escapeSolrValue(value: string) {
+  return String(value).replace(/([\\+\-!(){}[\]^"~*?:]|&&|\|\|)/g, '\\$1');
 }
 
 export async function getOrder(orderId: string): Promise<Order> {
@@ -232,6 +338,36 @@ export interface AddOrderNotePayload {
   noteName?: string;
   noteInfo: string;
   internalNote: boolean;
+}
+
+export interface CommunicationEventPayload {
+  communicationEventTypeId?: string;
+  origCommEventId?: string;
+  parentCommEventId?: string;
+  statusId?: string;
+  contactMechTypeId?: string;
+  contactMechIdFrom?: string;
+  contactMechIdTo?: string;
+  roleTypeIdFrom?: string;
+  roleTypeIdTo?: string;
+  partyIdFrom?: string;
+  partyIdTo?: string;
+  datetimeStarted?: string;
+  datetimeEnded?: string;
+  subject?: string;
+  contentMimeTypeId?: string;
+  content?: string;
+  note?: string;
+  reasonEnumId?: string;
+  contactListId?: string;
+  headerString?: string;
+  fromString?: string;
+  toString?: string;
+  ccString?: string;
+  bccString?: string;
+  messageId?: string;
+  externalId?: string;
+  action?: 'REPLY' | 'REPLYALL' | 'FORWARD' | '';
 }
 
 export interface OrderItemUpdatePayload {
@@ -461,6 +597,17 @@ export async function sendOrderEmail(orderId: string, emailType: 'PRDS_ODR_CONFI
   });
 }
 
+export async function createOrderCommunicationEvent(orderId: string, payload: CommunicationEventPayload) {
+  return api({
+    url: 'oms/communicationEvents',
+    method: 'post',
+    data: {
+      orderId,
+      ...payload
+    }
+  });
+}
+
 export async function changeOrderItemStatus(orderId: string, orderItemSeqId: string, statusId: string) {
   return api({
     url: `oms/orders/${orderId}/items/${orderItemSeqId}`,
@@ -471,22 +618,6 @@ export async function changeOrderItemStatus(orderId: string, orderItemSeqId: str
       statusId
     }
   });
-}
-
-function toStartOfDayMillis(value: string) {
-  return DateTime.fromISO(value).startOf('day').toMillis().toString();
-}
-
-function toEndOfDayMillis(value: string) {
-  return DateTime.fromISO(value).endOf('day').toMillis().toString();
-}
-
-function isInternalOrderId(value: string) {
-  return /^[A-Z]+[-_]?\d+$/i.test(value) || /^\d{5,}$/.test(value);
-}
-
-function isPhoneSearch(value: string) {
-  return /^[+\d][\d\s().-]{5,}$/.test(value);
 }
 
 function normalizeOrderDetail(detail: any): Order {
@@ -538,6 +669,7 @@ function normalizeShipGroup(shipGroup: any) {
   return {
     id: toStringValue(shipGroup.shipGroupSeqId),
     shipmentId: toStringValue(shipGroup.shipmentId),
+    shipmentMethodTypeId: toStringValue(shipGroup.shipmentMethodTypeId),
     method: toStringValue(shipGroup.shipmentMethodTypeDesc ?? shipGroup.shipmentMethodTypeId),
     status: toStringValue(shipGroup.shipmentStatusId ?? shipGroup.statusId),
     trackingCode: toStringValue(shipGroup.trackingCode ?? shipGroup.trackingIdNumber),
@@ -570,7 +702,8 @@ function normalizeOrderDetailItem(item: any, shipGroup?: ReturnType<typeof norma
     facility: toStringValue(item.facilityName ?? item.facilityId ?? shipGroup?.facilityName ?? shipGroup?.facilityId),
     unitPrice: toNumberValue(item.unitPrice),
     adjustments: toNumberValue(item.adjustments ?? item.adjustmentAmount, 0),
-    shipGroupSeqId: toStringValue(item.shipGroupSeqId ?? shipGroup?.id)
+    shipGroupSeqId: toStringValue(item.shipGroupSeqId ?? shipGroup?.id),
+    imageUrl: toStringValue(item.mainImageUrl ?? item.mediumImageUrl ?? item.smallImageUrl ?? item.productImageUrl ?? item.imageUrl)
   };
 }
 
@@ -580,7 +713,8 @@ function normalizePaymentPreference(payment: any): PaymentPreference {
     method: toStringValue(payment.paymentMethodTypeId ?? payment.paymentMethodTypeDesc ?? payment.paymentMethodId),
     status: toStringValue(payment.statusId ?? payment.paymentStatusId ?? payment.status),
     amount: toNumberValue(payment.maxAmount ?? payment.amount ?? payment.paymentAmount),
-    gatewayResponse: toStringValue(payment.gatewayResponse ?? payment.gatewayCode)
+    gatewayResponse: toStringValue(payment.gatewayResponse ?? payment.gatewayCode),
+    capturedAt: toStringValue(payment.captureDate ?? payment.capturedDate ?? payment.paymentDate ?? payment.effectiveDate ?? payment.statusDatetime ?? payment.createdDate)
   };
 }
 
@@ -614,7 +748,33 @@ function normalizeCommunicationEvent(event: any): CommunicationEvent {
     subject: toStringValue(event.subject ?? event.content),
     entryDate: toStringValue(event.entryDate ?? event.createdDate),
     statusId: toStringValue(event.statusId),
-    typeId: toStringValue(event.communicationEventTypeId ?? event.typeId)
+    typeId: toStringValue(event.communicationEventTypeId ?? event.typeId),
+    origCommEventId: toStringValue(event.origCommEventId),
+    parentCommEventId: toStringValue(event.parentCommEventId),
+    contactMechTypeId: toStringValue(event.contactMechTypeId),
+    contactMechIdFrom: toStringValue(event.contactMechIdFrom),
+    contactMechIdTo: toStringValue(event.contactMechIdTo),
+    roleTypeIdFrom: toStringValue(event.roleTypeIdFrom),
+    roleTypeIdTo: toStringValue(event.roleTypeIdTo),
+    partyIdFrom: toStringValue(event.partyIdFrom),
+    partyIdTo: toStringValue(event.partyIdTo),
+    datetimeStarted: toStringValue(event.datetimeStarted),
+    datetimeEnded: toStringValue(event.datetimeEnded),
+    contentMimeTypeId: toStringValue(event.contentMimeTypeId),
+    content: toStringValue(event.content),
+    note: toStringValue(event.note),
+    reasonEnumId: toStringValue(event.reasonEnumId),
+    contactListId: toStringValue(event.contactListId),
+    headerString: toStringValue(event.headerString),
+    fromString: toStringValue(event.fromString),
+    toString: toStringValue(event.toString),
+    ccString: toStringValue(event.ccString),
+    bccString: toStringValue(event.bccString),
+    messageId: toStringValue(event.messageId),
+    externalId: toStringValue(event.externalId),
+    type: toStringValue(event.type),
+    status: toStringValue(event.status),
+    orderId: toStringValue(event.orderId)
   };
 }
 

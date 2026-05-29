@@ -35,67 +35,43 @@
       <ion-progress-bar v-if="loading" type="indeterminate" />
       <ErrorState v-if="error" title="Task queue failed" :message="error" />
 
-      <section v-if="taskCards.length" class="task-card-grid">
-        <ion-card v-for="taskCard in taskCards" :key="taskCard.workEffort.workEffortId" class="task-card">
+      <section v-if="taskCards.length" class="tasks">
+        <ion-card v-for="taskCard in taskCards" :key="taskCard.workEffort.workEffortId">
           <ion-card-header>
-            <div class="task-header">
-              <div>
-                <ion-card-title>{{ purposeLabel(taskCard.workEffort.purpose) }}</ion-card-title>
-                <ion-card-subtitle>{{ taskCard.workEffort.workEffortName }}</ion-card-subtitle>
-              </div>
-              <ion-badge :color="taskCard.workEffort.priority === 'critical' ? 'danger' : 'medium'">
-                {{ taskCard.workEffort.priority }}
-              </ion-badge>
+            <ion-card-subtitle>{{ taskCard.workEffort.workEffortName }}</ion-card-subtitle>
+            <ion-card-title>{{ purposeLabel(taskCard.workEffort.purpose) }}</ion-card-title>
+            <div class="ion-text-end meta-data">
+              <p>{{ taskAge(taskCard.workEffort) }} ago</p>
+              <p>{{ dueDelta(taskCard.workEffort.dueAt) }}</p>
             </div>
           </ion-card-header>
 
-          <ion-card-content>
-            <ion-list lines="full">
-              <ion-item>
-                <ion-label>
-                  <h3>{{ taskCard.item.displayId }} · {{ taskCard.item.customerName }}</h3>
-                  <p>{{ taskCard.item.transactionType }} · {{ taskCard.item.status }} · {{ taskCard.item.channel }}</p>
-                </ion-label>
-              </ion-item>
-              <ion-item>
-                <ion-label>
-                  <h3>Next action</h3>
-                  <p>{{ taskCard.workEffort.nextStep }}</p>
-                </ion-label>
-              </ion-item>
-              <ion-item>
-                <ion-label>
-                  <h3>Assignment</h3>
-                  <p>{{ taskCard.workEffort.owner }} · {{ taskCard.workEffort.statusId }}</p>
-                </ion-label>
-              </ion-item>
-              <ion-item>
-                <ion-label>
-                  <h3>Due</h3>
-                  <p>{{ formatDateTime(taskCard.workEffort.dueAt) }}</p>
-                </ion-label>
-                <ion-note slot="end">{{ impactLabel(taskCard.workEffort) }}</ion-note>
-              </ion-item>
-              <ion-item>
-                <ion-label>
-                  <h3>Context</h3>
-                  <p>{{ taskCard.item.brand }}<span v-if="taskCard.item.facilityName"> · {{ taskCard.item.facilityName }}</span></p>
-                </ion-label>
-              </ion-item>
-            </ion-list>
+          <div class="actions">
+            <ion-button fill="clear" :router-link="`/tasks/${taskCard.workEffort.workEffortId}`">
+              Open task
+            </ion-button>
+            <ion-button fill="clear" @click="openAssigneeModal(taskCard.workEffort.workEffortId)">
+              Assign
+            </ion-button>
+            <ion-button fill="outline" :router-link="transactionLink(taskCard.item)">
+              Open {{ taskCard.item.transactionType.toLowerCase() }}
+            </ion-button>
+          </div>
 
-            <div class="card-actions">
-              <ion-button fill="clear" :router-link="`/tasks/${taskCard.workEffort.workEffortId}`">
-                Open task
-              </ion-button>
-              <ion-button fill="clear" @click="operationsStore.assignWorkEffort(taskCard.workEffort.workEffortId, 'Taylor Brooks')">
-                Assign
-              </ion-button>
-              <ion-button fill="outline" :router-link="transactionLink(taskCard.item)">
-                Open {{ taskCard.item.transactionType.toLowerCase() }}
-              </ion-button>
-            </div>
-          </ion-card-content>
+          <ion-list lines="full">
+            <ion-item>
+              <ion-label>
+                {{ taskCard.item.displayId }} · {{ taskCard.item.customerName }}
+                <p>{{ taskCard.item.transactionType }} · {{ taskCard.item.status }} · {{ taskCard.item.channel }}</p>
+              </ion-label>
+            </ion-item>
+            <ion-item>
+              <ion-label>
+                Assignment
+              </ion-label>
+              <p slot="end">{{ taskCard.workEffort.owner }}</p>
+            </ion-item>
+          </ion-list>
         </ion-card>
       </section>
 
@@ -131,12 +107,14 @@ import {
   IonSegment,
   IonSegmentButton,
   IonTitle,
-  IonToolbar
+  IonToolbar,
+  modalController
 } from '@ionic/vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import EmptyState from '@/components/EmptyState.vue';
 import ErrorState from '@/components/ErrorState.vue';
+import TaskAssigneeModal from '@/components/TaskAssigneeModal.vue';
 import { useOperationsStore } from '@/store/operations';
 import type { TransactionWorkItem, WorkEffortPurpose, WorkEffortSummary } from '@/types/operations';
 
@@ -168,6 +146,21 @@ function loadWorkItems() {
   operationsStore.loadWorkItems({ purpose: purpose.value, status: 'active', query: query.value });
 }
 
+async function openAssigneeModal(workEffortId: string) {
+  const assigneeModal = await modalController.create({
+    component: TaskAssigneeModal
+  });
+
+  assigneeModal.onDidDismiss().then((result) => {
+    const assignee = result.data;
+    if (!assignee?.name) return;
+
+    operationsStore.assignWorkEffort(workEffortId, assignee.name);
+  });
+
+  return assigneeModal.present();
+}
+
 function purposeLabel(value: WorkEffortPurpose) {
   return {
     'grace-period': 'Grace period',
@@ -197,44 +190,87 @@ function formatDateTime(value: string) {
     timeStyle: 'short',
   }).format(new Date(value));
 }
+
+function taskAge(workEffort: WorkEffortSummary) {
+  const createdActivity = workEffort.activity.find((a) => a.event === 'Created') || workEffort.activity[0];
+  if (!createdActivity) return '';
+
+  const createdTime = new Date(createdActivity.at).getTime();
+  const elapsedMs = Date.now() - createdTime;
+  if (elapsedMs < 0) return '0m';
+
+  const elapsedMinutes = Math.floor(elapsedMs / 60000);
+  if (elapsedMinutes < 1) return 'just now';
+  if (elapsedMinutes < 60) return `${elapsedMinutes}m`;
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) return `${elapsedHours}h`;
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return `${elapsedDays}d`;
+}
+
+function dueDelta(dueAt: string) {
+  const dueTime = new Date(dueAt).getTime();
+  const diffMs = dueTime - Date.now();
+  const isOverdue = diffMs < 0;
+  const absDiffMs = Math.abs(diffMs);
+
+  const minutes = Math.round(absDiffMs / 60000);
+  if (minutes < 1) return isOverdue ? 'overdue' : 'now';
+
+  let deltaStr = '';
+  if (minutes < 60) {
+    deltaStr = `${minutes}m`;
+  } else {
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) {
+      deltaStr = `${hours}h`;
+    } else {
+      const days = Math.round(hours / 24);
+      deltaStr = `${days}d`;
+    }
+  }
+
+  return isOverdue ? `${deltaStr} overdue` : `in ${deltaStr}`;
+}
 </script>
 
 <style scoped>
-.task-card-grid {
+ion-card {
   display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  padding: 12px;
+  column-gap: var(--spacer-base);
+  grid-template-columns: 1fr auto;
+  margin: ;
 }
 
-.task-card {
-  margin: 0;
+ion-card-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "title meta" "subtitle meta";
 }
 
-.task-header,
-.card-actions {
-  align-items: center;
-  display: flex;
-  gap: 8px;
+ion-card-title {
+  grid-area: title;
 }
 
-.task-header {
-  justify-content: space-between;
+ion-card-subtitle {
+  grid-area: subtitle;
 }
 
-.card-actions {
+.meta-data {
+  grid-area: meta;
+}
+
+.actions {
   flex-wrap: wrap;
   justify-content: flex-end;
-  margin-block-start: 12px;
+  padding: var(--spacer-base);
 }
 
 @media (max-width: 520px) {
-  .task-card-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .card-actions {
-    justify-content: stretch;
+  ion-card {
+    display: block;
   }
 }
 </style>

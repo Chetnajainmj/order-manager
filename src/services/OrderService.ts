@@ -271,16 +271,16 @@ export function normalizeOrderDoc(doc: any): Order {
     id: orderId,
     externalId: toStringValue(doc.orderName ?? doc.externalOrderId ?? doc.externalId, orderId),
     orderDate: toStringValue(doc.orderDate ?? doc.orderEntryDate),
-    status: toStringValue(doc.orderStatusDesc ?? doc.statusId, 'Created') as Order['status'],
+    status: toStringValue(doc.orderStatusDesc ?? doc.orderStatusId ?? doc.statusId, 'Created') as Order['status'],
     customerId: toStringValue(doc.customerPartyId ?? doc.customerId ?? doc.partyId),
-    customerName,
+    customerName: customerName || toStringValue(doc.customerPartyName),
     channel: toStringValue(doc.salesChannelDesc ?? doc.salesChannelEnumId ?? doc.productStoreId),
     total: toNumberValue(doc.grandTotal),
     currency: toStringValue(doc.currencyUom ?? doc.presentmentCurrencyUom, 'USD'),
     paymentStatus: toStringValue(doc.paymentStatus ?? doc.paymentStatusDesc),
-    fulfillmentStatus: toStringValue(doc.fulfillmentStatus ?? doc.orderStatusDesc ?? doc.statusId),
+    fulfillmentStatus: toStringValue(doc.fulfillmentStatus ?? doc.orderStatusDesc ?? doc.orderStatusId ?? doc.statusId),
     deliveryMethod: toStringValue(doc.shipmentMethodDesc ?? doc.shipmentMethodTypeId),
-    priority: toStringValue(doc.priority ?? doc.orderStatusDesc ?? doc.statusId),
+    priority: toStringValue(doc.priority ?? doc.orderStatusDesc ?? doc.orderStatusId ?? doc.statusId),
     items: [],
     shipmentIds: toStringList(doc.shipmentId ?? doc.primaryShipmentId),
     returnIds: toStringList(doc.returnId ?? doc.primaryReturnId),
@@ -297,7 +297,8 @@ export function normalizeOrderItemDoc(doc: any) {
     quantity: toNumberValue(doc.quantity),
     status: toStringValue(doc.statusId ?? doc.status),
     facility: toStringValue(doc.facilityId),
-    unitPrice: toNumberValue(doc.unitPrice)
+    unitPrice: toNumberValue(doc.unitPrice),
+    imageUrl: toStringValue(doc.mainImageUrl ?? doc.mediumImageUrl ?? doc.smallImageUrl ?? doc.productImageUrl ?? doc.imageUrl)
   };
 }
 
@@ -306,6 +307,7 @@ export function normalizeOrderNoteDoc(doc: any) {
     id: toStringValue(doc.noteId),
     author: toStringValue(doc.noteParty, 'System'),
     createdAt: toStringValue(doc.noteDateTime),
+    title: toStringValue(doc.noteName),
     body: toStringValue(doc.noteInfo)
   };
 }

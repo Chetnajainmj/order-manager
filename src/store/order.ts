@@ -6,6 +6,7 @@ import {
   cancelOrderItemReservation as cancelOrderItemReservationService,
   changeOrderItemStatus as changeOrderItemStatusService,
   convertOrderShipToStore as convertOrderShipToStoreService,
+  createOrderCommunicationEvent as createOrderCommunicationEventService,
   createOrderItemReservation as createOrderItemReservationService,
   deleteOrderItem as deleteOrderItemService,
   getOrder as getOrderService,
@@ -29,6 +30,7 @@ import {
   updateOrderItem as updateOrderItemService,
   updateOrderShipGroup as updateOrderShipGroupService,
   type AddOrderNotePayload,
+  type CommunicationEventPayload,
   type InventoryActionPayload,
   type OrderItemUpdatePayload,
   type OrderItemsActionPayload,
@@ -40,7 +42,7 @@ import {
 import type { Customer, Order, ReturnRecord, Shipment } from '@/types/order';
 
 export interface OrderSearchFilters {
-  status: string;
+  status: string[];
   channel: string;
   productStoreId: string;
   dateFrom: string;
@@ -51,12 +53,13 @@ export const useOrderStore = defineStore('orders', {
   state: () => ({
     searchQuery: '',
     searchFilters: {
-      status: 'All',
+      status: [],
       channel: 'All',
       productStoreId: 'All',
       dateFrom: '',
       dateThru: '',
     } as OrderSearchFilters,
+    searchSort: 'orderDate desc',
     searchResults: [] as Order[],
     searchTotal: 0,
     pageIndex: 0,
@@ -131,6 +134,7 @@ export const useOrderStore = defineStore('orders', {
         productStoreId: this.searchFilters.productStoreId,
         dateFrom: this.searchFilters.dateFrom,
         dateThru: this.searchFilters.dateThru,
+        sort: this.searchSort,
         pageSize: this.pageSize,
         pageIndex,
       };
@@ -221,6 +225,9 @@ export const useOrderStore = defineStore('orders', {
     },
     async sendOrderEmail(orderId: string, emailType: 'PRDS_ODR_CONFIRM' | 'PRDS_ODR_COMPLETE') {
       await this.runOrderAction(orderId, `send-order-email:${emailType}`, () => sendOrderEmailService(orderId, emailType), false);
+    },
+    async createOrderCommunicationEvent(orderId: string, payload: CommunicationEventPayload) {
+      await this.runOrderAction(orderId, 'create-communication-event', () => createOrderCommunicationEventService(orderId, payload));
     },
     async changeOrderItemStatus(orderId: string, orderItemSeqId: string, statusId: string) {
       await this.runOrderAction(orderId, `change-item-status:${orderItemSeqId}`, () => changeOrderItemStatusService(orderId, orderItemSeqId, statusId));

@@ -15,12 +15,38 @@
         placeholder="Order, external ID, customer, email"
         @clear="clearFilters"
       >
-        <ion-select v-model="searchFilters.status" label="Status" label-placement="stacked" interface="popover">
-          <ion-select-option value="All">All statuses</ion-select-option>
-          <ion-select-option v-for="option in orderStatuses" :key="option.statusId" :value="option.statusId">
-            {{ option.description || option.statusId }}
-          </ion-select-option>
-        </ion-select>
+        <ion-item id="order-status-filter-trigger" button lines="none">
+          <ion-label>
+            <p>Status</p>
+            <h3>{{ statusFilterLabel }}</h3>
+          </ion-label>
+        </ion-item>
+        <ion-popover trigger="order-status-filter-trigger" trigger-action="click">
+          <ion-content>
+            <ion-list>
+              <ion-item lines="none">
+                <ion-checkbox
+                  :checked="!selectedStatusIds.length"
+                  justify="start"
+                  label-placement="end"
+                  @ionChange="setAllStatusesFilter(Boolean($event.detail.checked))"
+                >
+                  All statuses
+                </ion-checkbox>
+              </ion-item>
+              <ion-item v-for="option in orderStatuses" :key="option.statusId" lines="none">
+                <ion-checkbox
+                  :checked="selectedStatusIds.includes(option.statusId)"
+                  justify="start"
+                  label-placement="end"
+                  @ionChange="setStatusFilter(option.statusId, Boolean($event.detail.checked))"
+                >
+                  {{ option.description || option.statusId }}
+                </ion-checkbox>
+              </ion-item>
+            </ion-list>
+          </ion-content>
+        </ion-popover>
         <ion-input v-model="searchFilters.dateFrom" label="Order date from" label-placement="stacked" type="date" />
         <ion-input v-model="searchFilters.dateThru" label="Order date thru" label-placement="stacked" type="date" />
         <ion-select v-model="searchFilters.channel" label="Channel" label-placement="stacked" interface="popover">
@@ -29,9 +55,9 @@
             {{ option.description || option.enumName || option.enumId }}
           </ion-select-option>
         </ion-select>
-        <ion-select v-model="orderDateSort" label="Sort by order date" label-placement="stacked" interface="popover">
-          <ion-select-option value="-orderDate">Newest first</ion-select-option>
-          <ion-select-option value="orderDate">Oldest first</ion-select-option>
+        <ion-select v-model="searchSort" label="Sort by order date" label-placement="stacked" interface="popover">
+          <ion-select-option value="orderDate desc">Newest first</ion-select-option>
+          <ion-select-option value="orderDate asc">Oldest first</ion-select-option>
         </ion-select>
       </SearchFilterCard>
 
@@ -54,7 +80,9 @@
             />
           </span>
           <ion-label>{{ searchTotal }} orders</ion-label>
-          <ion-button fill="clear" size="small" @click="enterSelectMode">Select</ion-button>
+          <ion-button fill="clear" size="small" @click="toggleSelectMode">
+            {{ selectMode ? 'Done' : 'Select' }}
+          </ion-button>
         </ion-list-header>
         <ion-item
           v-for="order in searchResults"
@@ -75,9 +103,9 @@
             <p>{{ order.id }} · {{ order.customerName || order.customerId || 'Unknown customer' }}</p>
             <p>{{ createdDateLabel(order.orderDate) }} · Ship {{ shipTimeLeftLabel(order.orderDate) }}</p>
           </ion-label>
-          <ion-note slot="end">
+          <ion-badge :color="commonUtil.getColorByDesc(order.status) || commonUtil.getColorByDesc('default')" slot="end">
             {{ order.status }}
-          </ion-note>
+          </ion-badge>
         </ion-item>
       </ion-list>
 
@@ -99,7 +127,6 @@
           <ion-button :disabled="!selectedOrderIds.length">Cancel open items</ion-button>
           <ion-button :disabled="!selectedOrderIds.length">Edit shipping method</ion-button>
           <ion-button :disabled="!selectedOrderIds.length">Add task</ion-button>
-          <ion-button fill="clear" @click="exitSelectMode">Done</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-footer>
@@ -108,6 +135,7 @@
 
 <script setup lang="ts">
 import {
+  IonBadge,
   IonButton,
   IonButtons,
   IonCheckbox,
@@ -124,12 +152,14 @@ import {
   IonMenuButton,
   IonNote,
   IonPage,
+  IonPopover,
   IonProgressBar,
   IonSelect,
   IonSelectOption,
   IonTitle,
   IonToolbar
 } from '@ionic/vue';
+import { commonUtil } from '@common';
 import { DateTime } from 'luxon';
 import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -143,15 +173,26 @@ import SearchFilterCard from '@/components/SearchFilterCard.vue';
 const orderStore = useOrderStore();
 const userStore = useUserStore();
 const utilStore = useUtilStore();
-const { searchQuery, searchFilters, searchResults, searchTotal, loading, error, hasMore } = storeToRefs(orderStore);
+const { searchQuery, searchFilters, searchSort, searchResults, searchTotal, loading, error, hasMore } = storeToRefs(orderStore);
 const debounceTimer = ref<ReturnType<typeof setTimeout>>();
-const orderDateSort = ref('-orderDate');
 const selectMode = ref(false);
 const selectedOrderIds = ref<string[]>([]);
 
 const orderStatuses = computed(() => utilStore.getStatusItemsByType('ORDER_STATUS'));
 const salesChannels = computed(() => utilStore.getEnumsByType('ORDER_SALES_CHANNEL'));
 const selectedProductStoreId = computed(() => userStore.currentProductStore?.productStoreId || 'All');
+const selectedStatusIds = computed(() => {
+  const status = searchFilters.value.status as string[] | string;
+  if (Array.isArray(status)) return status;
+
+  return status && status !== 'All' ? [status] : [];
+});
+const statusFilterLabel = computed(() => {
+  if (!selectedStatusIds.value.length) return 'All statuses';
+  if (selectedStatusIds.value.length === 1) return statusDescription(selectedStatusIds.value[0]);
+
+  return `${selectedStatusIds.value.length} statuses`;
+});
 const currentPageOrderIds = computed(() => searchResults.value.map((order) => order.id));
 const allCurrentPageSelected = computed(() => {
   return currentPageOrderIds.value.length > 0 && currentPageOrderIds.value.every((orderId) => selectedOrderIds.value.includes(orderId));
@@ -177,6 +218,10 @@ watch(searchFilters, () => {
   orderStore.runSearch();
 }, { deep: true });
 
+watch(searchSort, () => {
+  orderStore.runSearch();
+});
+
 watch(searchResults, () => {
   const currentOrderIds = new Set(currentPageOrderIds.value);
   selectedOrderIds.value = selectedOrderIds.value.filter((orderId) => currentOrderIds.has(orderId));
@@ -189,10 +234,10 @@ function scheduleSearch() {
 
 function clearFilters() {
   orderStore.searchQuery = '';
-  orderDateSort.value = '-orderDate';
+  orderStore.searchSort = 'orderDate desc';
   selectedOrderIds.value = [];
   orderStore.searchFilters = {
-    status: 'All',
+    status: [],
     channel: 'All',
     productStoreId: selectedProductStoreId.value,
     dateFrom: '',
@@ -214,6 +259,15 @@ function exitSelectMode() {
   selectedOrderIds.value = [];
 }
 
+function toggleSelectMode() {
+  if (selectMode.value) {
+    exitSelectMode();
+    return;
+  }
+
+  enterSelectMode();
+}
+
 function toggleCurrentPageSelection(checked: boolean) {
   selectedOrderIds.value = checked ? [...currentPageOrderIds.value] : [];
 }
@@ -230,6 +284,27 @@ function setOrderSelection(orderId: string, checked: boolean) {
   }
 
   selectedOrderIds.value = selectedOrderIds.value.filter((selectedOrderId) => selectedOrderId !== orderId);
+}
+
+function clearStatusFilter() {
+  searchFilters.value.status = [];
+}
+
+function setAllStatusesFilter(checked: boolean) {
+  if (checked) clearStatusFilter();
+}
+
+function setStatusFilter(statusId: string, checked: boolean) {
+  const nextStatusIds = new Set(selectedStatusIds.value);
+
+  if (checked) nextStatusIds.add(statusId);
+  else nextStatusIds.delete(statusId);
+
+  searchFilters.value.status = [...nextStatusIds];
+}
+
+function statusDescription(statusId: string) {
+  return orderStatuses.value.find((status) => status.statusId === statusId)?.description || statusId;
 }
 
 function createdDateLabel(value: string) {

@@ -6,6 +6,7 @@ import {
   cancelOrderItem,
   cancelOrderItemReservation,
   convertOrderShipToStore,
+  createOrderCommunicationEvent,
   createOrderItemReservation,
   deleteOrderItem,
   getOrder,
@@ -23,19 +24,28 @@ import {
   updateOrderShipGroup
 } from './order';
 
+const runSolrQuery = vi.fn();
+
 vi.mock('@common', () => ({
   api: vi.fn(),
+  commonUtil: {
+    hasError: vi.fn(() => false),
+  },
+  useSolrSearch: () => ({
+    runSolrQuery,
+  }),
 }));
 
 describe('order service', () => {
   beforeEach(() => {
     vi.mocked(api).mockReset();
+    runSolrQuery.mockReset();
   });
 
-  it('builds the OrderManagerOrderLookup payload with search and filters', () => {
+  it('builds the SOLR order lookup payload with search and filters', () => {
     expect(buildOrderLookupPayload({
       queryString: 'M1001',
-      status: 'ORDER_APPROVED',
+      status: ['ORDER_APPROVED'],
       channel: 'WEB_CHANNEL',
       productStoreId: 'STORE',
       dateFrom: '2026-05-01',
@@ -43,58 +53,89 @@ describe('order service', () => {
       pageSize: 25,
       pageIndex: 2,
     })).toMatchObject({
-      dataDocumentId: 'OrderManagerOrderLookup',
-      format: 'json',
-      customParametersMap: {
-        orderTypeId: 'SALES_ORDER',
-        hcOrderId: 'M1001',
-        statusId: 'ORDER_APPROVED',
-        salesChannelEnumId: 'WEB_CHANNEL',
-        productStoreId: 'STORE',
-        orderDate_from: expect.any(String),
-        orderDate_thru: expect.any(String),
+      json: {
+        params: {
+          rows: 25,
+          start: 50,
+          group: true,
+          'group.field': 'orderId',
+          'group.ngroups': true,
+          defType: 'edismax',
+          qf: expect.stringContaining('customerEmailId'),
+        },
+        query: '(M1001* OR "M1001"^100)',
+        filter: [
+          'docType: ORDER',
+          'orderTypeId: SALES_ORDER',
+          'orderStatusId:ORDER_APPROVED',
+          'salesChannelEnumId: WEB_CHANNEL',
+          'productStoreId: STORE',
+          'orderDate: [2026-05-01T00:00:00Z TO 2026-05-24T23:59:59Z]',
+        ],
       },
-      orderByField: '-orderDate',
-      pageSize: 25,
-      pageIndex: 2,
     });
   });
 
-  it('posts to the DataDocument endpoint and normalizes returned orders', async () => {
-    vi.mocked(api).mockResolvedValue({
+  it('omits the status filter for all statuses', () => {
+    expect(buildOrderLookupPayload({
+      status: [],
+    }).json.filter).not.toContain(expect.stringContaining('orderStatusId'));
+
+    expect(buildOrderLookupPayload({
+      status: 'All',
+    }).json.filter).not.toContain(expect.stringContaining('orderStatusId'));
+  });
+
+  it('builds one OR status filter for multiple selected statuses', () => {
+    const filter = buildOrderLookupPayload({
+      status: ['ORDER_APPROVED', 'ORDER_COMPLETED'],
+    }).json.filter;
+
+    expect(filter.filter((entry: string) => entry.includes('orderStatusId'))).toEqual([
+      'orderStatusId:(ORDER_APPROVED OR ORDER_COMPLETED)'
+    ]);
+  });
+
+  it('posts to the SOLR endpoint and normalizes grouped returned orders', async () => {
+    runSolrQuery.mockResolvedValue({
+      status: 200,
       data: {
-        count: 1,
-        entityValueList: [{
-          hcOrderId: 'M1001',
-          orderName: '#1001',
-          statusId: 'ORDER_APPROVED',
-          customerFirstName: 'Maya',
-          customerLastName: 'Chen',
-          salesChannelEnumId: 'WEB_CHANNEL',
-          grandTotal: 27,
-          currencyUom: 'USD',
-          productStoreId: 'STORE',
-        }],
+        grouped: {
+          orderId: {
+            ngroups: 1,
+            groups: [{
+              doclist: {
+                docs: [{
+                  orderId: 'M1001',
+                  orderName: '#1001',
+                  orderStatusDesc: 'Approved',
+                  customerPartyName: 'Maya Chen',
+                  salesChannelDesc: 'Web',
+                  grandTotal: 27,
+                  currencyUom: 'USD',
+                  productStoreId: 'STORE',
+                }],
+              },
+            }],
+          },
+        },
       },
     });
 
     const result = await searchOrders({ queryString: 'M1001', pageSize: 25 });
 
-    expect(api).toHaveBeenCalledWith({
-      url: 'oms/dataDocumentView',
-      method: 'post',
-      data: expect.objectContaining({
-        dataDocumentId: 'OrderManagerOrderLookup',
-        pageSize: 25,
+    expect(runSolrQuery).toHaveBeenCalledWith(expect.objectContaining({
+      json: expect.objectContaining({
+        params: expect.objectContaining({ rows: 25 }),
       }),
-    });
+    }));
     expect(result.total).toBe(1);
     expect(result.orders[0]).toMatchObject({
       id: 'M1001',
       externalId: '#1001',
-      status: 'ORDER_APPROVED',
+      status: 'Approved',
       customerName: 'Maya Chen',
-      channel: 'WEB_CHANNEL',
+      channel: 'Web',
       total: 27,
       currency: 'USD',
     });
@@ -117,7 +158,7 @@ describe('order service', () => {
           customerFirstName: 'Swati',
           customerLastName: 'Pandey',
           orderEmail: 'swati.pandey@example.com',
-          paymentPreferences: [{ orderPaymentPreferenceId: '1001', statusId: 'PAYMENT_SETTLED' }],
+          paymentPreferences: [{ orderPaymentPreferenceId: '1001', statusId: 'PAYMENT_SETTLED', maxAmount: 27, captureDate: '2026-05-30T10:00:00Z' }],
           roles: [{ partyId: 'M100051', roleTypeId: 'BILL_TO_CUSTOMER' }],
           shipGroups: [{
             shipGroupSeqId: '00002',
@@ -139,6 +180,7 @@ describe('order service', () => {
               unitPrice: 12,
               itemStatusId: 'ITEM_APPROVED',
               facilityId: 'BROOKLYN',
+              mainImageUrl: 'https://cdn.example.com/mh09pink.jpg',
             }],
           }],
         },
@@ -170,12 +212,17 @@ describe('order service', () => {
         shipByDate: '2026-05-30',
       }],
     });
+    expect(order.payments?.[0]).toMatchObject({
+      amount: 27,
+      capturedAt: '2026-05-30T10:00:00Z',
+    });
     expect(order.items[0]).toMatchObject({
       id: '01',
       sku: 'M101874',
       name: 'MH09PINK',
       quantity: 1,
       status: 'ITEM_APPROVED',
+      imageUrl: 'https://cdn.example.com/mh09pink.jpg',
     });
   });
 
@@ -200,6 +247,47 @@ describe('order service', () => {
       data: {
         orderId: 'M100051',
         emailType: 'PRDS_ODR_CONFIRM',
+      },
+    });
+  });
+
+  it('creates an order-linked communication event with CommunicationEvent model fields', async () => {
+    vi.mocked(api).mockResolvedValue({ data: { communicationEventId: 'CE100' }, status: 200 });
+
+    await createOrderCommunicationEvent('M100051', {
+      communicationEventTypeId: 'EMAIL_COMMUNICATION',
+      parentCommEventId: 'CE99',
+      statusId: 'COM_IN_PROGRESS',
+      contactMechTypeId: 'EMAIL_ADDRESS',
+      partyIdFrom: 'CSR_1',
+      partyIdTo: 'CUST_1',
+      roleTypeIdFrom: 'ORIGINATOR',
+      roleTypeIdTo: 'ADDRESSEE',
+      datetimeStarted: '2026-05-29T12:00:00.000Z',
+      subject: 'Order M100051',
+      contentMimeTypeId: 'text/plain',
+      content: 'Checking on your order.',
+      action: 'REPLY'
+    });
+
+    expect(api).toHaveBeenCalledWith({
+      url: 'oms/communicationEvents',
+      method: 'post',
+      data: {
+        orderId: 'M100051',
+        communicationEventTypeId: 'EMAIL_COMMUNICATION',
+        parentCommEventId: 'CE99',
+        statusId: 'COM_IN_PROGRESS',
+        contactMechTypeId: 'EMAIL_ADDRESS',
+        partyIdFrom: 'CSR_1',
+        partyIdTo: 'CUST_1',
+        roleTypeIdFrom: 'ORIGINATOR',
+        roleTypeIdTo: 'ADDRESSEE',
+        datetimeStarted: '2026-05-29T12:00:00.000Z',
+        subject: 'Order M100051',
+        contentMimeTypeId: 'text/plain',
+        content: 'Checking on your order.',
+        action: 'REPLY'
       },
     });
   });

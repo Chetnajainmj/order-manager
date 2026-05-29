@@ -263,15 +263,15 @@ export const useCustomerServiceStore = defineStore('customerService', {
 
 export const BULK_ACTIONS: Record<WorkflowBucket, BulkActionDefinition[]> = {
   unallocated: [
-    { id: 'broker', label: 'Broker to facility', color: 'primary' },
-    { id: 'cancel', label: 'Cancel', color: 'danger', confirmText: 'Cancel selected orders?' }
+    { id: 'broker', label: 'Broker to facility' },
+    { id: 'cancel', label: 'Cancel', confirmText: 'Cancel selected orders?' }
   ],
   unwaved: [
-    { id: 'mark-received', label: 'Mark received at facility', color: 'primary' },
-    { id: 'rebroker', label: 'Send back to brokering', color: 'medium' }
+    { id: 'mark-received', label: 'Mark received at facility' },
+    { id: 'rebroker', label: 'Send back to brokering' }
   ],
   inflight: [
-    { id: 'wave', label: 'Add to picklist', color: 'primary' },
-    { id: 'hold', label: 'Place on hold', color: 'warning' }
+    { id: 'wave', label: 'Add to picklist' },
+    { id: 'hold', label: 'Place on hold' }
   ]
 };

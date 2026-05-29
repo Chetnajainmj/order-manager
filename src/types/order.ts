@@ -63,6 +63,7 @@ export interface PaymentPreference {
   status: string;
   amount: number;
   gatewayResponse: string;
+  capturedAt?: string;
 }
 
 export interface OrderTerm {
@@ -89,6 +90,32 @@ export interface CommunicationEvent {
   entryDate: string;
   statusId: string;
   typeId: string;
+  origCommEventId?: string;
+  parentCommEventId?: string;
+  contactMechTypeId?: string;
+  contactMechIdFrom?: string;
+  contactMechIdTo?: string;
+  roleTypeIdFrom?: string;
+  roleTypeIdTo?: string;
+  partyIdFrom?: string;
+  partyIdTo?: string;
+  datetimeStarted?: string;
+  datetimeEnded?: string;
+  contentMimeTypeId?: string;
+  content?: string;
+  note?: string;
+  reasonEnumId?: string;
+  contactListId?: string;
+  headerString?: string;
+  fromString?: string;
+  toString?: string;
+  ccString?: string;
+  bccString?: string;
+  messageId?: string;
+  externalId?: string;
+  type?: string;
+  status?: string;
+  orderId?: string;
 }
 
 export interface OrderStatusChange {
@@ -103,6 +130,7 @@ export interface OrderNote {
   id: string;
   author: string;
   createdAt: string;
+  title?: string;
   body: string;
   internal: boolean;
 }
@@ -120,6 +148,7 @@ export interface OrderItem {
   unitPrice: number;
   adjustments?: number;
   shipGroupSeqId?: string;
+  imageUrl?: string;
 }
 
 export interface Shipment {
@@ -289,6 +318,7 @@ export interface Order {
   shipGroups?: Array<{
     id: string;
     shipmentId: string;
+    shipmentMethodTypeId?: string;
     method: string;
     status: string;
     trackingCode: string;

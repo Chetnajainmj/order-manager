@@ -63,7 +63,8 @@ describe('order store', () => {
 
     const store = useOrderStore();
     store.searchQuery = 'M100';
-    store.searchFilters.status = 'ORDER_APPROVED';
+    store.searchFilters.status = ['ORDER_APPROVED'];
+    store.searchSort = 'orderDate asc';
     store.pageSize = 1;
 
     await store.runSearch();
@@ -71,7 +72,8 @@ describe('order store', () => {
 
     expect(searchOrders).toHaveBeenNthCalledWith(1, expect.objectContaining({
       queryString: 'M100',
-      status: 'ORDER_APPROVED',
+      status: ['ORDER_APPROVED'],
+      sort: 'orderDate asc',
       pageIndex: 0,
       pageSize: 1,
     }));

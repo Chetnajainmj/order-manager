@@ -7,74 +7,68 @@
         </ion-buttons>
         <ion-title>{{ title }}</ion-title>
       </ion-toolbar>
-      <ion-toolbar>
-        <ion-searchbar v-model="filters.query" :placeholder="searchPlaceholder" />
-      </ion-toolbar>
     </ion-header>
 
     <ion-content>
-      <ion-list>
-        <ion-list-header>
-          <ion-label>Filters</ion-label>
-          <ion-button fill="clear" @click="clearFilters">Clear</ion-button>
-        </ion-list-header>
-        <ion-item>
-          <ion-select v-model="filters.productStoreId" label="Product store" interface="popover">
-            <ion-select-option value="All">All stores</ion-select-option>
-            <ion-select-option v-for="store in store.productStores" :key="store.id" :value="store.id">
-              {{ store.name }}
-            </ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item>
-          <ion-select v-model="filters.salesChannelEnumId" label="Channel" interface="popover">
-            <ion-select-option value="All">All channels</ion-select-option>
-            <ion-select-option v-for="channel in store.channels" :key="channel" :value="channel">
-              {{ formatChannel(channel) }}
-            </ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item v-if="showFacility">
-          <ion-select v-model="filters.facilityId" label="Facility" interface="popover">
-            <ion-select-option value="All">All facilities</ion-select-option>
-            <ion-select-option v-for="facility in store.facilities" :key="facility.id" :value="facility.id">
-              {{ facility.name }}
-            </ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item>
-          <ion-select v-model="filters.priority" label="Priority" interface="popover">
-            <ion-select-option value="All">All priorities</ion-select-option>
-            <ion-select-option v-for="priority in store.priorities" :key="priority" :value="priority">
-              {{ priority }}
-            </ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item>
-          <ion-input v-model="filters.dateFrom" label="From" type="date" />
-        </ion-item>
-        <ion-item>
-          <ion-input v-model="filters.dateThru" label="Thru" type="date" />
-        </ion-item>
-      </ion-list>
+      <SearchFilterCard
+        v-model="filters.query"
+        :placeholder="searchPlaceholder"
+        @clear="clearFilters"
+      >
+        <ion-select v-model="filters.productStoreId" label="Product store" label-placement="stacked" interface="popover">
+          <ion-select-option value="All">All stores</ion-select-option>
+          <ion-select-option v-for="store in store.productStores" :key="store.id" :value="store.id">
+            {{ store.name }}
+          </ion-select-option>
+        </ion-select>
+        <ion-select v-model="filters.salesChannelEnumId" label="Channel" label-placement="stacked" interface="popover">
+          <ion-select-option value="All">All channels</ion-select-option>
+          <ion-select-option v-for="channel in store.channels" :key="channel" :value="channel">
+            {{ formatChannel(channel) }}
+          </ion-select-option>
+        </ion-select>
+        <ion-select v-if="showFacility" v-model="filters.facilityId" label="Facility" label-placement="stacked" interface="popover">
+          <ion-select-option value="All">All facilities</ion-select-option>
+          <ion-select-option v-for="facility in store.facilities" :key="facility.id" :value="facility.id">
+            {{ facility.name }}
+          </ion-select-option>
+        </ion-select>
+        <ion-select v-model="filters.priority" label="Priority" label-placement="stacked" interface="popover">
+          <ion-select-option value="All">All priorities</ion-select-option>
+          <ion-select-option v-for="priority in store.priorities" :key="priority" :value="priority">
+            {{ priority }}
+          </ion-select-option>
+        </ion-select>
+        <ion-input v-model="filters.dateFrom" label="Order date from" label-placement="stacked" type="date" />
+        <ion-input v-model="filters.dateThru" label="Order date thru" label-placement="stacked" type="date" />
+      </SearchFilterCard>
 
       <ion-list>
         <ion-list-header>
-          <ion-label>
-            {{ orders.length }} {{ orders.length === 1 ? 'order' : 'orders' }}
-            <span v-if="orders.length" class="select-all-link">
-              ·
-              <ion-button fill="clear" size="small" @click="toggleSelectAll">
-                {{ allSelected ? 'Clear selection' : 'Select all' }}
-              </ion-button>
-            </span>
-          </ion-label>
-        </ion-list-header>
-        <ion-item v-for="order in orders" :key="order.orderId">
           <ion-checkbox
+            v-if="selectMode"
+            :checked="allCurrentPageSelected"
+            :indeterminate="someCurrentPageSelected && !allCurrentPageSelected"
+            @ion-change="toggleCurrentPageSelection($event.detail.checked)"
+          />
+          <ion-label>{{ orders.length }} {{ orders.length === 1 ? 'order' : 'orders' }}</ion-label>
+          <ion-button fill="clear" size="small" @click="toggleSelectMode">
+            {{ selectMode ? 'Done' : 'Select' }}
+          </ion-button>
+        </ion-list-header>
+        <ion-item
+          v-for="order in orders"
+          :key="order.orderId"
+          button
+          :router-link="selectMode ? undefined : orderDetailLink(order)"
+          @click="toggleOrderSelection(order.orderId)"
+        >
+          <ion-checkbox
+            v-if="selectMode"
             slot="start"
             :checked="selectedIds.has(order.orderId)"
-            @ion-change="toggleSelection(order.orderId)"
+            @click.stop
+            @ion-change="setOrderSelection(order.orderId, $event.detail.checked)"
           />
           <ion-label>
             <h2>{{ order.orderName }} · {{ order.externalId }}</h2>
@@ -85,7 +79,7 @@
               <template v-if="order.facilityName"> · {{ order.facilityName }}</template>
             </p>
           </ion-label>
-          <ion-note slot="end" :color="priorityColor(order.priority)">
+          <ion-note slot="end">
             <div>{{ order.priority }}</div>
             <div>{{ formatCurrency(order.grandTotal, order.currencyUomId) }}</div>
           </ion-note>
@@ -99,19 +93,14 @@
       />
     </ion-content>
 
-    <ion-footer v-if="selectedIds.size > 0">
-      <ion-toolbar color="light">
-        <ion-buttons slot="start">
-          <ion-button fill="clear" @click="store.clearSelection(bucket)">
-            Clear ({{ selectedIds.size }})
-          </ion-button>
-        </ion-buttons>
+    <ion-footer v-if="selectMode">
+      <ion-toolbar>
+        <ion-title size="small">{{ selectedIds.size }} selected</ion-title>
         <ion-buttons slot="end">
           <ion-button
             v-for="action in actions"
             :key="action.id"
-            :color="action.color || 'primary'"
-            fill="solid"
+            :disabled="!selectedIds.size"
             @click="runAction(action)"
           >
             {{ action.label }}
@@ -146,7 +135,6 @@ import {
   IonMenuButton,
   IonNote,
   IonPage,
-  IonSearchbar,
   IonSelect,
   IonSelectOption,
   IonTitle,
@@ -154,11 +142,15 @@ import {
   IonToolbar,
   alertController
 } from '@ionic/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { DateTime } from 'luxon';
 import { useCustomerServiceStore, BULK_ACTIONS } from '@/store/customerService';
-import type { BulkActionDefinition, WorkflowBucket } from '@/types/customerService';
+import type { BulkActionDefinition, WorkflowBucket, WorkflowOrder } from '@/types/customerService';
 import EmptyState from '@/components/EmptyState.vue';
+import SearchFilterCard from '@/components/SearchFilterCard.vue';
+
+const actualOrderIds = ['M100051'];
+const fallbackActualOrderId = actualOrderIds[Math.floor(Math.random() * actualOrderIds.length)];
 
 const props = defineProps<{
   bucket: WorkflowBucket;
@@ -180,26 +172,71 @@ const filters = computed({
 const orders = computed(() => store.filteredOrders(props.bucket));
 const selectedIds = computed(() => new Set(store.selection[props.bucket]));
 const actions = computed<BulkActionDefinition[]>(() => BULK_ACTIONS[props.bucket]);
+const selectMode = ref(false);
+const currentPageOrderIds = computed(() => orders.value.map((order) => order.orderId));
+const allCurrentPageSelected = computed(() => {
+  return currentPageOrderIds.value.length > 0 && currentPageOrderIds.value.every((orderId) => selectedIds.value.has(orderId));
+});
+const someCurrentPageSelected = computed(() => currentPageOrderIds.value.some((orderId) => selectedIds.value.has(orderId)));
 
-const allSelected = computed(() => orders.value.length > 0 && orders.value.every((order) => selectedIds.value.has(order.orderId)));
-
-function toggleSelection(orderId: string) {
-  store.toggleSelection(props.bucket, orderId);
-}
-
-function toggleSelectAll() {
-  if (allSelected.value) {
-    store.clearSelection(props.bucket);
-  } else {
-    store.setSelection(props.bucket, orders.value.map((order) => order.orderId));
-  }
-}
+watch(orders, () => {
+  const currentOrderIds = new Set(currentPageOrderIds.value);
+  store.setSelection(
+    props.bucket,
+    store.selection[props.bucket].filter((orderId) => currentOrderIds.has(orderId))
+  );
+});
 
 function clearFilters() {
   store.clearFilters(props.bucket);
 }
 
+function enterSelectMode() {
+  selectMode.value = true;
+}
+
+function exitSelectMode() {
+  selectMode.value = false;
+  store.clearSelection(props.bucket);
+}
+
+function toggleSelectMode() {
+  if (selectMode.value) {
+    exitSelectMode();
+    return;
+  }
+
+  enterSelectMode();
+}
+
+function toggleCurrentPageSelection(checked: boolean) {
+  store.setSelection(props.bucket, checked ? [...currentPageOrderIds.value] : []);
+}
+
+function toggleOrderSelection(orderId: string) {
+  if (!selectMode.value) return;
+  setOrderSelection(orderId, !selectedIds.value.has(orderId));
+}
+
+function setOrderSelection(orderId: string, checked: boolean) {
+  const currentSelection = new Set(store.selection[props.bucket]);
+
+  if (checked) {
+    currentSelection.add(orderId);
+  } else {
+    currentSelection.delete(orderId);
+  }
+
+  store.setSelection(props.bucket, [...currentSelection]);
+}
+
+function orderDetailLink(order: WorkflowOrder) {
+  return `/orders/${order.orderId.startsWith('ORD-') ? fallbackActualOrderId : order.orderId}`;
+}
+
 async function runAction(action: BulkActionDefinition) {
+  if (!selectedIds.value.size) return;
+
   if (action.confirmText) {
     const alert = await alertController.create({
       header: action.label,
@@ -241,20 +278,4 @@ function formatCurrency(amount: number, currency: string) {
   }
 }
 
-function priorityColor(priority: string) {
-  if (priority === 'HIGH') return 'danger';
-  if (priority === 'LOW') return 'medium';
-  return undefined;
-}
 </script>
-
-<style scoped>
-ion-note[slot='end'] {
-  text-align: right;
-  font-size: 0.85rem;
-}
-.select-all-link ion-button {
-  --padding-start: 4px;
-  --padding-end: 4px;
-}
-</style>

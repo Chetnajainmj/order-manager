@@ -40,6 +40,5 @@ export interface WorkflowFilters {
 export interface BulkActionDefinition {
   id: string;
   label: string;
-  color?: string;
   confirmText?: string;
 }

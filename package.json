@@ -35,7 +35,8 @@
     "vue": "catalog:",
     "vue-logger-plugin": "catalog:",
     "papaparse": "catalog:",
-    "@capacitor/clipboard": "catalog:"
+    "@capacitor/clipboard": "catalog:",
+    "chart.js": "catalog:"
   },
   "devDependencies": {
     "@capacitor/cli": "catalog:",
