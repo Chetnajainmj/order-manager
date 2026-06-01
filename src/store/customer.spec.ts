@@ -1,56 +1,104 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { getCustomer, getCustomerContactMechs, getCustomerOrders } from '@/services/customer';
+import {
+  getCustomerOrdersFromSolr,
+  getCustomerProfile,
+  getCustomerRelationships,
+  getCustomerTasks
+} from '@/services/customer';
 import { useCustomerStore } from './customer';
-import type { Customer } from '@/types/order';
+import type { CustomerProfile } from '@/types/customer';
 
 vi.mock('@/services/customer', () => ({
-  getCustomer: vi.fn(),
-  getCustomerContactMechs: vi.fn(),
-  getCustomerOrders: vi.fn(),
+  getCustomerProfile: vi.fn(),
+  getCustomerOrdersFromSolr: vi.fn(),
+  getCustomerTasks: vi.fn(),
+  getCustomerRelationships: vi.fn(),
+  createPartyRelationship: vi.fn(),
+  expirePartyRelationship: vi.fn()
 }));
 
-describe('customer store', () => {
+describe('customer detail store', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
-    vi.mocked(getCustomer).mockReset();
-    vi.mocked(getCustomerContactMechs).mockReset();
-    vi.mocked(getCustomerOrders).mockReset();
+    vi.mocked(getCustomerProfile).mockReset();
+    vi.mocked(getCustomerOrdersFromSolr).mockReset();
+    vi.mocked(getCustomerTasks).mockReset();
+    vi.mocked(getCustomerRelationships).mockReset();
+    // Section sources default to empty so dashboard fan-out never rejects.
+    vi.mocked(getCustomerOrdersFromSolr).mockResolvedValue({ orders: [], lifetimeOrders: 0, lifetimeValue: 0, currencyUom: 'USD' });
+    vi.mocked(getCustomerTasks).mockResolvedValue([]);
+    vi.mocked(getCustomerRelationships).mockResolvedValue([]);
   });
 
-  it('loads customer profile, contact mechs, and recent orders', async () => {
-    vi.mocked(getCustomer).mockResolvedValue(stubCustomer('CUST_1'));
-    vi.mocked(getCustomerContactMechs).mockResolvedValue({
-      contactMechs: [{ contactMechId: 'EMAIL1' } as any],
-      emails: [{ contactMechId: 'EMAIL1' } as any],
-      phones: [],
-      postalAddresses: [],
-    });
-    vi.mocked(getCustomerOrders).mockResolvedValue({
-      total: 1,
-      orders: [{ id: 'M100051' } as any],
-    });
+  it('loads the profile source and exposes it via getCustomer', async () => {
+    vi.mocked(getCustomerProfile).mockResolvedValue(stubProfile('CUST_1'));
 
     const store = useCustomerStore();
-    const customer = await store.loadCustomer('CUST_1');
+    await store.setCurrentCustomer('CUST_1');
 
-    expect(customer.id).toBe('CUST_1');
-    expect(store.getCustomer('CUST_1')?.emails).toEqual([{ contactMechId: 'EMAIL1' }]);
-    expect(store.getCustomerOrders('CUST_1')).toEqual([{ id: 'M100051' }]);
-    expect(store.orderTotalsByCustomer.CUST_1).toBe(1);
-    expect(store.fetchStatus.detail).toBe('success');
+    expect(store.getCustomer('CUST_1')?.id).toBe('CUST_1');
+    expect(store.sectionStatus('CUST_1', 'profile')).toBe('loaded');
+  });
+
+  it('isolates a profile failure to the profile source', async () => {
+    vi.mocked(getCustomerProfile).mockRejectedValue(new Error('boom'));
+
+    const store = useCustomerStore();
+    await store.loadCustomerProfile('CUST_2');
+
+    expect(store.sectionStatus('CUST_2', 'profile')).toBe('error');
+    expect(store.sectionError('CUST_2', 'profile')).toBe('boom');
+    expect(store.getCustomer('CUST_2')).toBeNull();
+  });
+
+  it('folds Solr order aggregates into the lifetime getters', async () => {
+    vi.mocked(getCustomerProfile).mockResolvedValue(stubProfile('CUST_3'));
+    vi.mocked(getCustomerOrdersFromSolr).mockResolvedValue({ orders: [], lifetimeOrders: 4, lifetimeValue: 250.5, currencyUom: 'USD' });
+
+    const store = useCustomerStore();
+    await store.setCurrentCustomer('CUST_3');
+
+    expect(store.lifetimeOrders('CUST_3')).toBe(4);
+    expect(store.lifetimeValue('CUST_3')).toBe(250.5);
+  });
+
+  it('derives personal relationships from the relationships source', async () => {
+    vi.mocked(getCustomerProfile).mockResolvedValue(stubProfile('CUST_4'));
+    vi.mocked(getCustomerRelationships).mockResolvedValue([
+      {
+        partyIdFrom: 'CUST_4', partyIdTo: 'CUST_9',
+        roleTypeIdFrom: 'CUSTOMER', roleTypeIdTo: 'CUSTOMER',
+        fromDate: '2026-01-01 00:00:00.000',
+        partyRelationshipTypeId: 'SIBLING', relationshipName: 'Sibling',
+        fromPartyName: 'A', toPartyName: 'Sibling Person'
+      }
+    ]);
+
+    const store = useCustomerStore();
+    await store.setCurrentCustomer('CUST_4');
+
+    const personal = store.personalRelationships('CUST_4');
+    expect(personal).toHaveLength(1);
+    expect(personal[0].relatedPartyName).toBe('Sibling Person');
+    expect(personal[0].relationshipName).toBe('Sibling');
   });
 });
 
-function stubCustomer(id: string): Customer {
+function stubProfile(id: string): CustomerProfile {
   return {
     id,
-    name: 'Swati Pandey',
-    email: '',
-    phone: '',
-    loyaltyTier: 'Unassigned',
+    name: 'Test Customer',
+    partyTypeId: 'PERSON',
+    statusId: 'PARTY_ENABLED',
+    createdStamp: '',
+    lastUpdatedStamp: '',
     lifetimeOrders: 0,
     lifetimeValue: 0,
-    addresses: [],
+    roles: [],
+    identifications: [],
+    contactMechs: [],
+    relationshipsFrom: [],
+    relationshipsTo: []
   };
 }

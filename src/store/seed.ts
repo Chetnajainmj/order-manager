@@ -124,6 +124,26 @@ export const useSeedStore = defineStore("seed", {
     status: (state) => (statusId: string) => findStatus(state, statusId),
     statusDescription: (state) => (statusId: string) => itemDescription(findStatus(state, statusId), statusId),
     enumDescription: (state) => (enumId: string) => itemDescription(findEnum(state, enumId), enumId),
+    // Generic label resolver: enrich any id received from an API into its human
+    // description using whichever loaded seed dataset it belongs to. Falls back to
+    // the raw id, so it is always safe to wrap an id with this.
+    describe: (state) => (id: string): string => {
+      if (!id) return "";
+      const status = findStatus(state, id);
+      if (status) return itemDescription(status, id);
+      const enumeration = findEnum(state, id);
+      if (enumeration) return itemDescription(enumeration, id);
+      const lookups: SeedDatasetState[] = [
+        state.contactMechPurposeTypes, state.roleTypes, state.paymentMethodTypes,
+        state.communicationEventTypes, state.returnReasons, state.returnTypes,
+        state.returnItemTypes, state.orderAdjustmentTypes, state.shipmentMethodTypes,
+        state.facilityTypes
+      ];
+      for (const lookup of lookups) {
+        if (lookup.byId[id]) return itemDescription(lookup.byId[id], id);
+      }
+      return id;
+    },
     facility: (state) => (facilityId: string) => state.facilities.byId[facilityId],
     facilityName: (state) => (facilityId: string) => itemDescription(state.facilities.byId[facilityId], facilityId, ["facilityName", "facilityId"]),
     facilityType: (state) => (facilityTypeId: string) => state.facilityTypes.byId[facilityTypeId],

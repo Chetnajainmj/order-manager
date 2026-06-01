@@ -1,0 +1,154 @@
+// Customer 360 detail types. Kept separate from the shared `Order` types in
+// `types/order.ts` so that file does not accumulate customer-only detail objects.
+// These mirror the `/oms/customers/{partyId}` (Party customerDetail master) payload
+// plus the focused related-list APIs (orders, tasks, returns, communications).
+
+export type LoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
+
+export interface SourceEntry<T> {
+  payload: T;
+  status: LoadStatus;
+  loadedAt: string;
+  error: string;
+  pageIndex?: number;
+  pageSize?: number;
+  total?: number;
+}
+
+export interface CustomerContactMech {
+  partyId: string;
+  contactMechId: string;
+  contactMechTypeId: 'EMAIL_ADDRESS' | 'TELECOM_NUMBER' | 'POSTAL_ADDRESS' | string;
+  contactMechPurposeTypeId: string;
+  purposeTypeIds: string[];
+  infoString: string;
+  fromDate?: string;
+  thruDate?: string;
+  postalAddress?: {
+    address1?: string;
+    address2?: string;
+    city?: string;
+    stateProvinceGeoId?: string;
+    postalCode?: string;
+    countryGeoId?: string;
+  };
+  telecomNumber?: {
+    countryCode?: string;
+    areaCode?: string;
+    contactNumber?: string;
+  };
+}
+
+export interface CustomerRelationship {
+  partyIdFrom: string;
+  partyIdTo: string;
+  roleTypeIdFrom: string;
+  roleTypeIdTo: string;
+  fromDate: string;
+  thruDate?: string;
+  partyRelationshipTypeId: string;
+  relationshipName: string;
+  fromPartyName: string;
+  toPartyName: string;
+  comments?: string;
+}
+
+export interface CustomerProfile {
+  id: string;
+  name: string;
+  partyTypeId: string;
+  statusId: string;
+  externalId?: string;
+  createdStamp: string;
+  lastUpdatedStamp: string;
+  lifetimeOrders: number;
+  lifetimeValue: number;
+  roles: Array<{ roleTypeId: string; fromDate?: string; thruDate?: string }>;
+  identifications: Array<{ partyIdentificationTypeId: string; idValue: string }>;
+  contactMechs: CustomerContactMech[];
+  relationshipsFrom: CustomerRelationship[];
+  relationshipsTo: CustomerRelationship[];
+}
+
+export interface CustomerOrderSummary {
+  orderId: string;
+  orderName: string;
+  orderDate: string;
+  statusId: string;
+  statusDesc: string;
+  grandTotal: number;
+  currencyUom: string;
+  itemCount: number;
+  unitCount: number;
+  progressLabel: string;
+  progressValue: number;
+  items: Array<{
+    orderItemSeqId: string;
+    productId: string;
+    sku: string;
+    name: string;
+    quantity: number;
+    imageUrl?: string;
+  }>;
+}
+
+export interface CustomerTaskSummary {
+  workEffortId: string;
+  workEffortName: string;
+  workEffortTypeId: string;
+  purposeTypeId?: string;
+  statusId: string;
+  dueDate?: string;
+  orderId?: string;
+  orderName?: string;
+  orderDate?: string;
+  orderTotal?: number;
+  assignee?: { partyId: string; name: string; fromDate?: string };
+  reporter?: { partyId: string; name: string; fromDate?: string };
+  notes?: string;
+  resolution?: string;
+}
+
+export interface CustomerReturnSummary {
+  returnId: string;
+  orderId: string;
+  statusId: string;
+  entryDate: string;
+  returnTotal: number;
+  currencyUomId: string;
+}
+
+export interface CustomerCommunicationSummary {
+  communicationEventId: string;
+  communicationEventTypeId: string;
+  statusId: string;
+  subject?: string;
+  entryDate?: string;
+  partyIdFrom?: string;
+  partyIdTo?: string;
+  content?: string;
+}
+
+export interface CustomerTimelineEvent {
+  id: string;
+  type: string;
+  label: string;
+  at: string;
+  sourceId?: string;
+}
+
+// View-model shape the Contact card binds to: one section per contact-mech type.
+export interface ContactSectionValue {
+  display: string;
+  contactMechId: string;
+  contactMechTypeId: string;
+  contactMechPurposeTypeId: string;
+  active: boolean;
+}
+
+export interface ContactSection {
+  key: string;
+  label: string;
+  contactMechTypeId: string;
+  values: ContactSectionValue[];
+}

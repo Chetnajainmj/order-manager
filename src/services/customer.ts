@@ -11,6 +11,7 @@ import {
   uniqueStrings
 } from './OrderService';
 import type { ContactMech, Customer, Order } from '@/types/order';
+import type { CustomerContactMech, CustomerOrderSummary, CustomerProfile, CustomerRelationship, CustomerTaskSummary } from '@/types/customer';
 
 export interface CustomerSearchParams {
   queryString?: string;
@@ -350,4 +351,330 @@ function isPartyIdSearch(value: string) {
 
 function isPhoneSearch(value: string) {
   return /^\d{7,}$/.test(value.replace(/[^\d]/g, ''));
+}
+
+/**
+ * Customer 360 profile read. Calls GET /oms/customers/{partyId} (the Party
+ * `customerDetail` entity master) and flattens the nested master into the
+ * CustomerProfile shape the detail store/getters consume. Bounded profile only -
+ * orders, tasks, returns, and communications are separate paginated calls.
+ */
+export async function getCustomerProfile(partyId: string): Promise<CustomerProfile> {
+  const response = await api({
+    url: `oms/customers/${partyId}`,
+    method: 'get'
+  });
+  return normalizeCustomerProfile(response.data, partyId);
+}
+
+export function normalizeCustomerProfile(doc: any, partyId = ''): CustomerProfile {
+  const person = doc?.person;
+  const group = doc?.partyGroup;
+  const name = group?.groupName
+    || [person?.firstName, person?.lastName].filter(Boolean).join(' ').trim()
+    || toStringValue(doc?.partyId)
+    || partyId;
+
+  return {
+    id: toStringValue(doc?.partyId) || partyId,
+    name,
+    partyTypeId: toStringValue(doc?.partyTypeId),
+    statusId: toStringValue(doc?.statusId),
+    externalId: doc?.externalId ? toStringValue(doc.externalId) : undefined,
+    createdStamp: toStringValue(doc?.createdDate ?? doc?.createdStamp),
+    lastUpdatedStamp: toStringValue(doc?.lastUpdatedStamp ?? doc?.lastModifiedDate),
+    lifetimeOrders: 0,
+    lifetimeValue: 0,
+    roles: (doc?.roles || []).map((role: any) => ({
+      roleTypeId: toStringValue(role.roleTypeId),
+      fromDate: role.fromDate ? toStringValue(role.fromDate) : undefined,
+      thruDate: role.thruDate ? toStringValue(role.thruDate) : undefined
+    })),
+    identifications: (doc?.identifications || []).map((identification: any) => ({
+      partyIdentificationTypeId: toStringValue(identification.partyIdentificationTypeId),
+      idValue: toStringValue(identification.idValue)
+    })),
+    contactMechs: (doc?.contactMechs || []).map(normalizeCustomerContactMech),
+    relationshipsFrom: (doc?.relationshipsFrom || []).map(normalizeCustomerRelationship),
+    relationshipsTo: (doc?.relationshipsTo || []).map(normalizeCustomerRelationship)
+  };
+}
+
+export function normalizeCustomerContactMech(contactMech: any): CustomerContactMech {
+  const mech = contactMech?.contactMech || {};
+  const purposeTypeIds = (contactMech?.purposes || [])
+    .map((purpose: any) => toStringValue(purpose.contactMechPurposeTypeId))
+    .filter(Boolean);
+  const postal = contactMech?.postalAddress;
+  const telecom = contactMech?.telecomNumber;
+
+  return {
+    partyId: toStringValue(contactMech?.partyId),
+    contactMechId: toStringValue(contactMech?.contactMechId),
+    contactMechTypeId: toStringValue(mech.contactMechTypeId),
+    contactMechPurposeTypeId: purposeTypeIds[0] || '',
+    purposeTypeIds,
+    infoString: toStringValue(mech.infoString),
+    fromDate: contactMech?.fromDate ? toStringValue(contactMech.fromDate) : undefined,
+    thruDate: contactMech?.thruDate ? toStringValue(contactMech.thruDate) : undefined,
+    postalAddress: postal ? {
+      address1: postal.address1,
+      address2: postal.address2,
+      city: postal.city,
+      stateProvinceGeoId: postal.stateProvinceGeoId,
+      postalCode: postal.postalCode,
+      countryGeoId: postal.countryGeoId
+    } : undefined,
+    telecomNumber: telecom ? {
+      countryCode: telecom.countryCode,
+      areaCode: telecom.areaCode,
+      contactNumber: telecom.contactNumber
+    } : undefined
+  };
+}
+
+export function normalizeCustomerRelationship(relationship: any): CustomerRelationship {
+  return {
+    partyIdFrom: toStringValue(relationship?.partyIdFrom),
+    partyIdTo: toStringValue(relationship?.partyIdTo),
+    roleTypeIdFrom: toStringValue(relationship?.roleTypeIdFrom),
+    roleTypeIdTo: toStringValue(relationship?.roleTypeIdTo),
+    fromDate: toStringValue(relationship?.fromDate),
+    thruDate: relationship?.thruDate ? toStringValue(relationship.thruDate) : undefined,
+    partyRelationshipTypeId: toStringValue(relationship?.partyRelationshipTypeId),
+    relationshipName: relationship?.relationshipType?.partyRelationshipName
+      || toStringValue(relationship?.partyRelationshipTypeId),
+    fromPartyName: partyNameFromDetail(relationship?.fromParty) || toStringValue(relationship?.partyIdFrom),
+    toPartyName: partyNameFromDetail(relationship?.toParty) || toStringValue(relationship?.partyIdTo),
+    comments: relationship?.comments
+  };
+}
+
+function partyNameFromDetail(detail: any): string {
+  if (!detail) return '';
+  if (detail.groupName) return toStringValue(detail.groupName);
+  return [detail.firstName, detail.lastName].filter(Boolean).join(' ').trim();
+}
+
+export interface CustomerOrdersResult {
+  orders: CustomerOrderSummary[];
+  lifetimeOrders: number;
+  lifetimeValue: number;
+  currencyUom: string;
+  firstOrderDate: string;
+}
+
+// No real fulfillment percentage is indexed on the order doc, so we derive a
+// coarse progress value from the order status purely for the dashboard bar.
+const ORDER_PROGRESS: Record<string, number> = {
+  ORDER_CREATED: 0.2,
+  ORDER_APPROVED: 0.6,
+  ORDER_HELD: 0.4,
+  ORDER_COMPLETED: 1,
+  ORDER_CANCELLED: 0
+};
+
+function mapOrderGroup(group: any): CustomerOrderSummary {
+  const docs: any[] = group.doclist?.docs || [];
+  const head = docs[0] || {};
+  const statusId = toStringValue(head.orderStatusId || head.statusId);
+  const unitCount = docs.reduce((sum, doc) => sum + Number(doc.quantity || 0), 0);
+
+  return {
+    orderId: toStringValue(group.groupValue),
+    orderName: head.orderName || toStringValue(group.groupValue),
+    orderDate: toStringValue(head.orderDate),
+    statusId,
+    statusDesc: head.orderStatusDesc || statusId,
+    grandTotal: Number(head.grandTotal || 0),
+    currencyUom: head.currencyUom || 'USD',
+    itemCount: Number(group.doclist?.numFound ?? docs.length),
+    unitCount,
+    progressLabel: head.orderStatusDesc || statusId,
+    progressValue: ORDER_PROGRESS[statusId] ?? 0.4,
+    items: docs.slice(0, 3).map((doc) => ({
+      orderItemSeqId: toStringValue(doc.orderItemSeqId),
+      productId: toStringValue(doc.productId),
+      sku: toStringValue(doc.internalName) || toStringValue(doc.productId),
+      name: doc.parentProductName || doc.productName || doc.internalName || toStringValue(doc.productId),
+      quantity: Number(doc.quantity || 0),
+      imageUrl: doc.mainImageUrl || ''
+    }))
+  };
+}
+
+/**
+ * Customer orders + lifetime aggregates from Solr (enterpriseSearch core,
+ * docType:ORDER, customerPartyId). The app calls runSolrQuery directly. Order docs
+ * are per-item, so we group by orderId. We PAGE THROUGH every group so the lifetime
+ * value/count are accurate regardless of order volume (ngroups = order count; one
+ * grandTotal per group summed = lifetime value). A Solr stats/facet sum can replace
+ * this loop later for performance.
+ */
+export async function getCustomerOrdersFromSolr(partyId: string, params: { pageSize?: number } = {}): Promise<CustomerOrdersResult> {
+  const pageSize = params.pageSize ?? 200;
+  const maxPages = 50; // safety cap (~10k orders)
+
+  const orders: CustomerOrderSummary[] = [];
+  let lifetimeValue = 0;
+  let lifetimeOrders = 0;
+  let currencyUom = 'USD';
+
+  for (let page = 0; page < maxPages; page++) {
+    const response = await api({
+      url: 'admin/runSolrQuery',
+      method: 'post',
+      data: {
+        coreName: 'enterpriseSearch',
+        json: {
+          query: '*:*',
+          filter: ['docType:ORDER', `customerPartyId:"${partyId}"`],
+          params: {
+            group: true,
+            'group.field': 'orderId',
+            'group.limit': 10,
+            'group.ngroups': true,
+            sort: 'orderDate desc',
+            rows: pageSize,
+            start: page * pageSize
+          }
+        }
+      }
+    });
+
+    const grouped = response.data?.grouped?.orderId;
+    const groups: any[] = grouped?.groups || [];
+    lifetimeOrders = Number(grouped?.ngroups ?? (page * pageSize + groups.length));
+    if (!groups.length) break;
+
+    groups.forEach((group) => {
+      const summary = mapOrderGroup(group);
+      lifetimeValue += summary.grandTotal;
+      currencyUom = summary.currencyUom || currencyUom;
+      orders.push(summary);
+    });
+
+    if (orders.length >= lifetimeOrders) break;
+  }
+
+  // Earliest order date (orders are sorted desc) - "customer since" fallback.
+  const firstOrderDate = orders.reduce((min, order) => {
+    if (!order.orderDate) return min;
+    return !min || order.orderDate < min ? order.orderDate : min;
+  }, '');
+
+  return { orders, lifetimeOrders, lifetimeValue, currencyUom, firstOrderDate };
+}
+
+/**
+ * Customer tasks via GET /oms/customers/{partyId}/tasks (get#PartyTasks). Separate,
+ * paginated/filterable call - tasks are unbounded history, kept out of the profile master.
+ */
+export async function getCustomerTasks(
+  partyId: string,
+  params: { statusId?: string; pageSize?: number; pageIndex?: number; orderByField?: string } = {}
+): Promise<CustomerTaskSummary[]> {
+  const response = await api({
+    url: `oms/customers/${partyId}/tasks`,
+    method: 'get',
+    params: {
+      statusId: params.statusId,
+      pageSize: params.pageSize ?? 20,
+      pageIndex: params.pageIndex ?? 0,
+      orderByField: params.orderByField
+    }
+  });
+  return (response.data?.tasks || []).map(normalizeCustomerTask);
+}
+
+export function normalizeCustomerTask(task: any): CustomerTaskSummary {
+  const person = (value: any) => (value
+    ? { partyId: toStringValue(value.partyId), name: value.name || toStringValue(value.partyId), fromDate: value.fromDate ? toStringValue(value.fromDate) : undefined }
+    : undefined);
+
+  return {
+    workEffortId: toStringValue(task.workEffortId),
+    workEffortName: toStringValue(task.workEffortName),
+    workEffortTypeId: toStringValue(task.workEffortTypeId),
+    purposeTypeId: task.purposeTypeId ? toStringValue(task.purposeTypeId) : undefined,
+    statusId: toStringValue(task.statusId),
+    dueDate: task.dueDate ? toStringValue(task.dueDate) : undefined,
+    orderId: task.orderId ? toStringValue(task.orderId) : undefined,
+    orderName: task.orderName || undefined,
+    orderDate: task.orderDate ? toStringValue(task.orderDate) : undefined,
+    orderTotal: task.orderTotal != null ? Number(task.orderTotal) : undefined,
+    assignee: person(task.assignee),
+    reporter: person(task.reporter),
+    notes: task.notes || undefined,
+    resolution: task.resolution || undefined
+  };
+}
+
+function asList(data: any): any[] {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.list)) return data.list;
+  return [];
+}
+
+/**
+ * Customer relationships from the dedicated /oms/partyRelationships endpoint (both
+ * directions, merged). Used instead of the Party master's nested relationshipsFrom/To
+ * because relationship-based master finds are cached and miss newly-created rows; the
+ * direct entity-list query stays fresh.
+ */
+export async function getCustomerRelationships(partyId: string): Promise<CustomerRelationship[]> {
+  const [fromRes, toRes] = await Promise.all([
+    api({ url: 'oms/partyRelationships', method: 'get', params: { partyIdFrom: partyId } }),
+    api({ url: 'oms/partyRelationships', method: 'get', params: { partyIdTo: partyId } })
+  ]);
+
+  const seen = new Set<string>();
+  const merged: CustomerRelationship[] = [];
+  [...asList(fromRes.data), ...asList(toRes.data)].forEach((row) => {
+    const relationship = normalizeCustomerRelationship(row);
+    const key = [relationship.partyIdFrom, relationship.partyIdTo, relationship.roleTypeIdFrom, relationship.roleTypeIdTo, relationship.fromDate].join('|');
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(relationship);
+  });
+  return merged;
+}
+
+export interface RelationshipInput {
+  partyIdFrom: string;
+  partyIdTo: string;
+  roleTypeIdFrom?: string;
+  roleTypeIdTo?: string;
+  fromDate: string;
+  partyRelationshipTypeId: string;
+  comments?: string;
+}
+
+export async function createPartyRelationship(input: RelationshipInput): Promise<void> {
+  await api({
+    url: 'oms/partyRelationships',
+    method: 'post',
+    data: {
+      roleTypeIdFrom: 'CUSTOMER',
+      roleTypeIdTo: 'CUSTOMER',
+      ...input
+    }
+  });
+}
+
+export interface RelationshipKey {
+  partyIdFrom: string;
+  partyIdTo: string;
+  roleTypeIdFrom: string;
+  roleTypeIdTo: string;
+  fromDate: string;
+}
+
+export async function expirePartyRelationship(key: RelationshipKey, thruDate: string): Promise<void> {
+  await api({
+    url: 'oms/partyRelationships',
+    method: 'put',
+    data: { ...key, thruDate }
+  });
 }
