@@ -5,7 +5,6 @@ import vue from '@vitejs/plugin-vue'
 import path from 'path'
 import { defineConfig } from 'vite'
 import { versionInfoUtil } from '../../common/utils/versionInfoUtil'
-import { localMoquiDiscoveryPlugin } from '../../common/vite/localMoquiDiscoveryPlugin'
 import pkg from './package.json'
 
 // https://vitejs.dev/config/
@@ -13,7 +12,6 @@ export default defineConfig({
   plugins: [
     vue(),
     legacy(),
-    localMoquiDiscoveryPlugin()
   ],
   define: {
     'import.meta.env.VITE_VERSION_INFO': JSON.stringify(JSON.stringify(versionInfoUtil.getVersionInfo(pkg.version)))
