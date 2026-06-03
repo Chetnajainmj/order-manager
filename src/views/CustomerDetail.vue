@@ -232,7 +232,7 @@
               <ion-icon slot="end" :icon="chevronUp" color="medium" />
             </ion-item>
 
-            <ion-progress-bar :value="order.progressValue" />
+            <ion-progress-bar :value="order.progressValue" :color="order.progressColor" />
 
             <ion-item lines="full">
               <ion-label>
@@ -393,6 +393,7 @@ const recentOrders = computed(() =>
     subtitle: `${order.itemCount} ${order.itemCount === 1 ? 'item' : 'items'} · ${order.unitCount} ${order.unitCount === 1 ? 'unit' : 'units'}`,
     progressLabel: order.progressLabel || order.statusDesc || 'In progress',
     progressValue: order.progressValue ?? 0.5,
+    progressColor: order.progressColor || 'primary',
     orderDate: formatLongDate(order.orderDate),
     items: (order.items || []).map((item) => ({
       name: item.name || item.sku || 'Item',

@@ -122,6 +122,9 @@ export const useSeedStore = defineStore("seed", {
     productStore: (state) => (productStoreId: string) => state.productStores.byId[productStoreId],
     productStoreName: (state) => (productStoreId: string) => itemDescription(state.productStores.byId[productStoreId], productStoreId, ["storeName", "companyName"]),
     status: (state) => (statusId: string) => findStatus(state, statusId),
+    // StatusItem.statusAge - a 0..~100 lifecycle position (created low, completed/cancelled ~100).
+    // Used to compute order/ship-group progress; 0 if unknown.
+    statusAge: (state) => (statusId: string): number => Number(findStatus(state, statusId)?.statusAge ?? 0),
     statusDescription: (state) => (statusId: string) => itemDescription(findStatus(state, statusId), statusId),
     enumDescription: (state) => (enumId: string) => itemDescription(findEnum(state, enumId), enumId),
     // Generic label resolver: enrich any id received from an API into its human

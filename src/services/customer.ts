@@ -567,6 +567,43 @@ export async function getCustomerOrdersFromSolr(partyId: string, params: { pageS
 }
 
 /**
+ * Current statuses that drive an order's progress, hydrated from the official get-order API
+ * (GET oms/orders?orderId=... - the same path the order detail page uses), NOT from Solr.
+ * Returns the latest status per order item, plus any shipment-item statuses the payload
+ * includes (robust: shipments are factored when present, ignored when absent). The caller
+ * maps each status to StatusItem.statusAge to compute the progress percentage.
+ */
+export async function getOrderProgressStatuses(orderId: string): Promise<string[]> {
+  const response = await api({ url: 'oms/orders', method: 'get', params: { orderId, dependentLevels: 1 } });
+  const order = Array.isArray(response.data) ? response.data[0] : response.data;
+  if (!order) return [];
+
+  // statuses[] is the full status history; keep the latest entry per order item.
+  const latestByItem: Record<string, any> = {};
+  (order.statuses || []).forEach((entry: any) => {
+    const seqId = toStringValue(entry.orderItemSeqId);
+    if (!seqId || seqId === '_NA_') return; // skip order-level / non-item statuses
+    const current = latestByItem[seqId];
+    if (!current || Number(entry.statusDatetime || 0) > Number(current.statusDatetime || 0)) {
+      latestByItem[seqId] = entry;
+    }
+  });
+  const statuses = Object.values(latestByItem)
+    .map((entry: any) => toStringValue(entry.statusId))
+    .filter(Boolean);
+
+  // Shipment-item statuses if the order payload includes them (otherwise ignored).
+  (order.shipments || []).forEach((shipment: any) => {
+    (shipment.items || shipment.shipmentItems || []).forEach((item: any) => {
+      const statusId = toStringValue(item.statusId);
+      if (statusId) statuses.push(statusId);
+    });
+  });
+
+  return statuses;
+}
+
+/**
  * Customer tasks via GET /oms/customers/{partyId}/tasks (get#PartyTasks). Separate,
  * paginated/filterable call - tasks are unbounded history, kept out of the profile master.
  */

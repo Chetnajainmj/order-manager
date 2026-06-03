@@ -82,6 +82,7 @@ export interface CustomerOrderSummary {
   unitCount: number;
   progressLabel: string;
   progressValue: number;
+  progressColor?: string;
   items: Array<{
     orderItemSeqId: string;
     productId: string;
