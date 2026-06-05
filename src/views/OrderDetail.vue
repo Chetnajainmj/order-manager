@@ -405,7 +405,7 @@
 
             <div class="actions ion-padding-horizontal ion-padding-bottom">
               <ion-button fill="outline" color="primary">Broker</ion-button>
-              <ion-button fill="outline" color="medium">Park</ion-button>
+              <ion-button fill="outline" color="medium" :disabled="!['ORDER_CREATED', 'ORDER_APPROVED'].includes(order.statusId)" @click="parkShipGroup(shipGroup.id)">Park</ion-button>
             </div>
           </ion-card>
         </template>
@@ -524,8 +524,8 @@
     <ion-footer v-if="order">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button fill="outline" color="danger">Cancel</ion-button>
-          <ion-button fill="outline" color="medium">Park</ion-button>
+          <ion-button fill="outline" color="danger" :disabled="['ORDER_CANCELLED', 'ORDER_COMPLETED'].includes(order.statusId)" @click="cancelOrder">Cancel</ion-button>
+          <ion-button fill="outline" color="medium" :disabled="!['ORDER_CREATED', 'ORDER_APPROVED'].includes(order.statusId)" @click="parkFullOrder">Park</ion-button>
         </ion-buttons>
         <ion-buttons slot="end">
           <ion-button fill="solid" color="warning">Return</ion-button>
@@ -538,39 +538,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import {
-  IonBackButton,
-  IonBadge,
-  IonButton,
-  IonButtons,
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonChip,
-  IonContent,
-  IonHeader,
-  IonIcon,
-  IonItem,
-  IonLabel,
-  IonList,
-  IonListHeader,
-  IonMenuButton,
-  IonNote,
-  IonPage,
-  IonProgressBar,
-  IonSegment,
-  IonSegmentButton,
-  IonSelect,
-  IonSelectOption,
-  IonTitle,
-  IonToolbar,
-  IonAccordion,
-  IonAccordionGroup,
-  IonThumbnail,
-  IonCheckbox,
-  IonFooter,
-  IonPopover
-} from '@ionic/vue';
+import { IonAccordion, IonAccordionGroup, IonBackButton, IonBadge, IonButton, IonButtons, IonCard, IonCardHeader, IonCardTitle, IonCheckbox, IonChip, IonContent, IonFooter, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonListHeader, IonMenuButton, IonNote, IonPage, IonPopover, IonProgressBar, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonThumbnail, IonTitle, IonToolbar, alertController, modalController } from '@ionic/vue';
 import { storeToRefs } from 'pinia';
 import { DateTime } from 'luxon';
 import { businessOutline, chevronDown, ellipsisVertical, gitBranchOutline } from 'ionicons/icons';
@@ -580,7 +548,10 @@ import { useProductCacheStore } from '@/store/productCache';
 import { useProductMaster } from '@/composables/useProductMaster';
 import EmptyState from '@/components/EmptyState.vue';
 import ErrorState from '@/components/ErrorState.vue';
+import FacilityModal from '@/components/FacilityModal.vue';
 import { commonUtil, translate } from '@common';
+import { showToast } from '@/utils';
+import { useOrderTaskStore } from '@/store/orderTask';
 
 const props = defineProps<{
   orderId: string;
@@ -840,6 +811,71 @@ function getGroupAdjustments(group: any) {
   return Object.entries(adjs)
     .map(([comment, amount]) => ({ comment, amount }))
     .filter(adj => adj.amount !== 0);
+}
+
+const orderTaskStore = useOrderTaskStore();
+
+async function openFacilityModal(): Promise<string | null> {
+  const modal = await modalController.create({ component: FacilityModal });
+  await modal.present();
+  const { data: facilityId } = await modal.onWillDismiss();
+  return facilityId ?? null;
+}
+
+async function parkShipGroup(shipGroupSeqId: string) {
+  const facilityId = await openFacilityModal();
+  if (!facilityId) return;
+  try {
+    await orderTaskStore.parkOrder(order.value!.id, shipGroupSeqId, facilityId);
+    await showToast(translate('Ship group successfully moved to parking.'));
+    await loadOrder(order.value!.id);
+  } catch {
+    await showToast(translate('Failed to park the ship group. Please try again.'));
+  }
+}
+
+async function cancelOrder() {
+  const raw = orderDetailStore.current;
+  if (!raw) return;
+  const alert = await alertController.create({
+    header: translate('Cancel order'),
+    message: translate('Are you sure you want to cancel this order? This action cannot be undone.'),
+    buttons: [
+      { text: translate('No'), role: 'cancel' },
+      {
+        text: translate('Yes'),
+        role: 'confirm',
+        handler: async () => {
+          const items = (raw.shipGroups || []).flatMap((sg: any) =>
+            (sg.items || []).map((item: any) => ({
+              orderItemSeqId: item.orderItemSeqId,
+              shipGroupSeqId: sg.shipGroupSeqId,
+            }))
+          );
+          try {
+            await orderTaskStore.cancelOrder(raw.orderId, items);
+            await showToast(translate('Order cancelled successfully.'));
+            await loadOrder(raw.orderId);
+          } catch {
+            await showToast(translate('Failed to cancel the order. Please try again.'));
+          }
+        }
+      }
+    ]
+  });
+  await alert.present();
+}
+
+async function parkFullOrder() {
+  const facilityId = await openFacilityModal();
+  if (!facilityId) return;
+  try {
+    await orderTaskStore.parkOrderFull(order.value!.id, facilityId);
+    await showToast(translate('Order successfully moved to parking.'));
+    await loadOrder(order.value!.id);
+  } catch {
+    await showToast(translate('Failed to park the order. Please try again.'));
+  }
 }
 </script>
 

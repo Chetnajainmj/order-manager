@@ -212,6 +212,18 @@ export const useOrderTaskStore = defineStore('orderTask', {
         throw err;
       }
     },
+    async parkOrderFull(orderId: string, facilityId: string) {
+      try {
+        await api({
+          url: `oms/orders/${orderId}/park`,
+          method: 'POST',
+          data: { facilityId },
+        });
+      } catch (err) {
+        console.error('Failed to park the order', err);
+        throw err;
+      }
+    },
     async swapOrder(orderId: string, shipGroupSeqId: string, itemSwapList: { orderItemSeqId: string; newProductId: string; reasonEnumId?: string }[], refundAmount?: number) {
       try {
         await api({
