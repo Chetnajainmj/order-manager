@@ -419,19 +419,80 @@
       </div>
 
       <div v-if="selectedSegment === 'holds'">
-        <ion-card v-for="hold in openHolds" :key="hold.id">
-          <ion-item color="warning" lines="none">
-            <ion-label>
-              {{ hold.purpose }}
-              <p>{{ hold.name }}</p>
-              <p v-if="hold.assignee">Assigned to {{ hold.assignee }}</p>
-            </ion-label>
-            <ion-badge slot="end" color="dark">{{ hold.status }}</ion-badge>
-          </ion-item>
-        </ion-card>
+        <div v-if="openHolds.length">
+          <div class="list-item work-effort-row" v-for="hold in openHolds" :key="hold.id">
+            <ion-item lines="none">
+              <ion-label>
+                {{ hold.id }}
+                <p>{{ translate("ID") }}</p>
+              </ion-label>
+            </ion-item>
+            <div class="tablet">
+              <ion-label class="ion-text-center">
+                {{ hold.purposeTypeId || '-' }}
+                <p>{{ translate("purpose") }}</p>
+              </ion-label>
+            </div>
+            <div class="tablet">
+              <ion-label class="ion-text-center">
+                {{ hold.description || '-' }}
+                <p>{{ translate("description") }}</p>
+              </ion-label>
+            </div>
+            <div class="tablet">
+              <ion-label class="ion-text-center">
+                <ion-badge :color="commonUtil.getStatusColor(hold.statusId)">{{ seed.statusDescription(hold.statusId) }}</ion-badge>
+                <p>{{ translate("status") }}</p>
+              </ion-label>
+            </div>
+          </div>
+        </div>
         <ion-list v-if="!openHolds.length">
           <ion-item lines="none">
-            <ion-label>No open holds on this order</ion-label>
+            <ion-label>{{ translate("No holds on this order") }}</ion-label>
+          </ion-item>
+        </ion-list>
+      </div>
+
+      <div v-if="selectedSegment === 'comms'">
+        <div v-if="commEvents.length">
+          <div class="list-item comm-event-row" v-for="ev in commEvents" :key="ev.id">
+            <ion-item lines="none">
+              <ion-label>
+                {{ ev.id }}
+                <p>{{ translate("ID") }}</p>
+              </ion-label>
+            </ion-item>
+            <div class="tablet">
+              <ion-label class="ion-text-center">
+                {{ ev.partyIdFrom || '-' }}
+                <p>{{ translate("from") }}</p>
+              </ion-label>
+            </div>
+            <div class="tablet">
+              <ion-label class="ion-text-center">
+                {{ ev.partyIdTo || '-' }}
+                <p>{{ translate("to") }}</p>
+              </ion-label>
+            </div>
+            <div class="tablet">
+              <ion-label class="ion-text-center">
+                {{ ev.content || '-' }}
+                <p>{{ translate("content") }}</p>
+              </ion-label>
+            </div>
+            <div class="tablet">
+              <ion-label class="ion-text-center" v-if="ev.entryDate">
+                {{ formatDate(ev.entryDate) }}
+                <p>{{ translate("entry date") }}</p>
+              </ion-label>
+              <ion-label v-else>-</ion-label>
+            </div>
+          </div>
+        </div>
+        <ion-list v-if="!commEvents.length">
+          <ion-item lines="none">
+            <ion-label>{{ translate("No communication events for this order") }}</ion-label>
           </ion-item>
         </ion-list>
       </div>
@@ -519,7 +580,7 @@ import { useProductCacheStore } from '@/store/productCache';
 import { useProductMaster } from '@/composables/useProductMaster';
 import EmptyState from '@/components/EmptyState.vue';
 import ErrorState from '@/components/ErrorState.vue';
-import { commonUtil } from '@common';
+import { commonUtil, translate } from '@common';
 
 const props = defineProps<{
   orderId: string;
@@ -615,18 +676,23 @@ const billingAddress = computed(() => {
   return lines.length ? { lines } : undefined;
 });
 
-// Open order holds (WorkEfforts), labeled via seed; assignee name from the nested person.
-const openHolds = computed(() => orderDetailStore.openHolds.map((hold: any) => {
-  const person = hold.partyAssignments?.[0]?.person;
+const openHolds = computed(() => orderDetailStore.orderHeaderWorkEfforts.map((link: any) => {
+  const we = link['org.apache.ofbiz.workeffort.workeffort.WorkEffort'] || link;
   return {
-    id: hold.workEffortId,
-    purpose: seed.enumDescription(hold.workEffortPurposeTypeId),
-    name: hold.workEffortName,
-    status: seed.statusDescription(hold.statusId),
-    assignee: person ? [person.firstName, person.lastName].filter(Boolean).join(' ') : '',
-    at: hold.createdDate
+    id: link.workEffortId,
+    purposeTypeId: we.workEffortPurposeTypeId || '',
+    statusId: we.statusId || '',
+    description: we.description || ''
   };
 }));
+
+const commEvents = computed(() => orderDetailStore.commEvents.map((ev: any) => ({
+  id: ev.communicationEventId,
+  partyIdFrom: ev.partyIdFrom,
+  partyIdTo: ev.partyIdTo,
+  content: ev.content,
+  entryDate: ev.entryDate
+})));
 
 const groupedItems = computed(() => {
   if (!order.value) return [];
@@ -709,6 +775,12 @@ const groupedItems = computed(() => {
 const orderTotals = computed(() => orderDetailStore.totals);
 
 const selectedSegment = ref('items');
+
+watch(selectedSegment, (segment) => {
+  if (!props.orderId) return;
+  if (segment === 'holds') orderDetailStore.fetchOrderHeaderWorkEfforts(props.orderId);
+  if (segment === 'comms') orderDetailStore.fetchCommEvents(props.orderId);
+});
 
 const areAllSelected = computed(() => {
   if (!groupedItems.value.length) return false;
@@ -844,5 +916,23 @@ ion-card-header  ion-buttons {
 .order-item-row {
   --columns-desktop: 5;
   --columns-tablet: 5;
+}
+
+.work-effort-row {
+  --columns-desktop: 4;
+  --columns-tablet: 4;
+}
+
+.work-effort-row > ion-item {
+  width: 100%;
+}
+
+.comm-event-row {
+  --columns-desktop: 5;
+  --columns-tablet: 5;
+}
+
+.comm-event-row > ion-item {
+  width: 100%;
 }
 </style>
