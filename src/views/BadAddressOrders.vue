@@ -67,6 +67,11 @@
 
             <!-- Address Details -->
             <div class="task-details border-top ion-padding-top">
+              <ion-item>
+                <ion-label>
+                  {{ task.description }}
+                </ion-label>
+              </ion-item>
               <ion-radio-group v-model="selectedAddressType[task.workEffortId]">
                 <div class="address-columns">
                   <!-- Original Address -->
@@ -282,8 +287,8 @@ function suggestedAddressFormFrom(task: any): AddressForm {
     address2: parsed.address2 ?? '',
     city: parsed.city ?? '',
     postalCode: parsed.postalCode ?? '',
-    stateProvinceGeoId: getGeoIdByCode(parsed.state ?? ''),
-    countryGeoId: getGeoIdByCode(parsed.country ?? ''),
+    stateProvinceGeoId: getGeoIdByCode(parsed.stateOrProvinceCode ?? ''),
+    countryGeoId: getGeoIdByCode(parsed.countryCode ?? ''),
     contactMechId: task?.shippingAddress?.contactMechId ?? '',
     contactMechPurposeTypeId: task?.shippingAddress?.contactMechPurposeTypeId || 'SHIPPING_LOCATION',
     partyId: task?.customer?.partyId ?? '',
