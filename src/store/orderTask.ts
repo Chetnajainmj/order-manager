@@ -205,7 +205,7 @@ export const useOrderTaskStore = defineStore('orderTask', {
         await api({
           url: `oms/orders/${orderId}/shipGroups/${shipGroupSeqId}/park`,
           method: 'POST',
-          data: { facilityId },
+          data: { facilityId, changeReasonEnumId: 'NO_VARIANCE_LOG' },
         });
       } catch (err) {
         console.error('Failed to park the order', err);
@@ -217,7 +217,7 @@ export const useOrderTaskStore = defineStore('orderTask', {
         await api({
           url: `oms/orders/${orderId}/park`,
           method: 'POST',
-          data: { facilityId },
+          data: { facilityId, changeReasonEnumId: 'NO_VARIANCE_LOG' },
         });
       } catch (err) {
         console.error('Failed to park the order', err);
