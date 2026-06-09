@@ -15,32 +15,32 @@
         :placeholder="searchPlaceholder"
         @clear="clearFilters"
       >
-        <ion-select v-model="filters.productStoreId" label="Product store" label-placement="stacked" interface="popover">
-          <ion-select-option value="All">All stores</ion-select-option>
+        <ion-select v-model="filters.productStoreId" :label="translate('Product store')" label-placement="stacked" interface="popover">
+          <ion-select-option value="All">{{ translate('All stores') }}</ion-select-option>
           <ion-select-option v-for="store in store.productStores" :key="store.id" :value="store.id">
             {{ store.name }}
           </ion-select-option>
         </ion-select>
-        <ion-select v-model="filters.salesChannelEnumId" label="Channel" label-placement="stacked" interface="popover">
-          <ion-select-option value="All">All channels</ion-select-option>
+        <ion-select v-model="filters.salesChannelEnumId" :label="translate('Channel')" label-placement="stacked" interface="popover">
+          <ion-select-option value="All">{{ translate('All channels') }}</ion-select-option>
           <ion-select-option v-for="channel in store.channels" :key="channel" :value="channel">
             {{ formatChannel(channel) }}
           </ion-select-option>
         </ion-select>
-        <ion-select v-if="showFacility" v-model="filters.facilityId" label="Facility" label-placement="stacked" interface="popover">
-          <ion-select-option value="All">All facilities</ion-select-option>
+        <ion-select v-if="showFacility" v-model="filters.facilityId" :label="translate('Facility')" label-placement="stacked" interface="popover">
+          <ion-select-option value="All">{{ translate('All facilities') }}</ion-select-option>
           <ion-select-option v-for="facility in store.facilities" :key="facility.id" :value="facility.id">
             {{ facility.name }}
           </ion-select-option>
         </ion-select>
-        <ion-select v-model="filters.priority" label="Priority" label-placement="stacked" interface="popover">
-          <ion-select-option value="All">All priorities</ion-select-option>
+        <ion-select v-model="filters.priority" :label="translate('Priority')" label-placement="stacked" interface="popover">
+          <ion-select-option value="All">{{ translate('All priorities') }}</ion-select-option>
           <ion-select-option v-for="priority in store.priorities" :key="priority" :value="priority">
             {{ priority }}
           </ion-select-option>
         </ion-select>
-        <ion-input v-model="filters.dateFrom" label="Order date from" label-placement="stacked" type="date" />
-        <ion-input v-model="filters.dateThru" label="Order date thru" label-placement="stacked" type="date" />
+        <ion-input v-model="filters.dateFrom" :label="translate('Order date from')" label-placement="stacked" type="date" />
+        <ion-input v-model="filters.dateThru" :label="translate('Order date thru')" label-placement="stacked" type="date" />
       </SearchFilterCard>
 
       <ion-list>
@@ -51,9 +51,9 @@
             :indeterminate="someCurrentPageSelected && !allCurrentPageSelected"
             @ion-change="toggleCurrentPageSelection($event.detail.checked)"
           />
-          <ion-label>{{ orders.length }} {{ orders.length === 1 ? 'order' : 'orders' }}</ion-label>
+          <ion-label>{{ orders.length }} {{ orders.length === 1 ? translate('order') : translate('orders') }}</ion-label>
           <ion-button fill="clear" size="small" @click="toggleSelectMode">
-            {{ selectMode ? 'Done' : 'Select' }}
+            {{ selectMode ? translate('Done') : translate('Select') }}
           </ion-button>
         </ion-list-header>
         <ion-item
@@ -95,7 +95,7 @@
 
     <ion-footer v-if="selectMode">
       <ion-toolbar>
-        <ion-title size="small">{{ selectedIds.size }} selected</ion-title>
+        <ion-title size="small">{{ selectedIds.size }} {{ translate('selected') }}</ion-title>
         <ion-buttons slot="end">
           <ion-button
             v-for="action in actions"
@@ -149,7 +149,7 @@ import { useCustomerServiceStore, BULK_ACTIONS } from '@/store/customerService';
 import type { BulkActionDefinition, WorkflowBucket, WorkflowOrder } from '@/types/customerService';
 import EmptyState from '@/components/EmptyState.vue';
 import SearchFilterCard from '@/components/SearchFilterCard.vue';
-import { commonUtil } from '@common';
+import { commonUtil, translate } from '@common';
 
 const actualOrderIds = ['M100051'];
 const fallbackActualOrderId = actualOrderIds[Math.floor(Math.random() * actualOrderIds.length)];
@@ -264,8 +264,8 @@ async function runAction(action: BulkActionDefinition) {
       header: action.label,
       message: action.confirmText,
       buttons: [
-        { text: 'Cancel', role: 'cancel' },
-        { text: 'Confirm', role: 'confirm' }
+        { text: translate('Cancel'), role: 'cancel' },
+        { text: translate('Confirm'), role: 'confirm' }
       ]
     });
     await alert.present();
@@ -275,7 +275,7 @@ async function runAction(action: BulkActionDefinition) {
 
   const count = selectedIds.value.size;
   store.runBulkAction(props.bucket, action.id);
-  toastMessage.value = `${action.label} · ${count} order${count === 1 ? '' : 's'}`;
+  toastMessage.value = `${action.label} · ${count} ${count === 1 ? translate('order') : translate('orders')}`;
 }
 
 function formatChannel(channel: string) {
