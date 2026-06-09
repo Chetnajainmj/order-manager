@@ -197,8 +197,12 @@
   "Unknown": "Unknown",
   "Use suggested": "Use suggested",
   "User": "User",
-  "Validation error": "Validation error",
   "Version": "Version",
   "View order": "View order",
-  "Yes": "Yes"
+  "Yes": "Yes",
+  "Create order": "Create order",
+  "Create Order": "Create Order",
+  "Validation error": "Validation error",
+  "Yes": "Yes",
+  "View order": "View order"
 }
