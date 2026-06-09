@@ -5,14 +5,14 @@
         <ion-buttons slot="start">
           <ion-menu-button />
         </ion-buttons>
-        <ion-title>Find orders</ion-title>
+        <ion-title>{{ translate('Find orders') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content>
       <SearchFilterCard
         v-model="searchQuery"
-        placeholder="Order, external ID, customer, email"
+        :placeholder="translate('Order, external ID, customer, email')"
         @clear="clearFilters"
       >
         <ion-item id="order-status-filter-trigger" button lines="none">
@@ -31,7 +31,7 @@
                   label-placement="end"
                   @ionChange="setAllStatusesFilter(Boolean($event.detail.checked))"
                 >
-                  All statuses
+                  {{ translate('All statuses') }}
                 </ion-checkbox>
               </ion-item>
               <ion-item v-for="option in orderStatuses" :key="option.statusId" lines="none">
@@ -56,8 +56,8 @@
           </ion-select-option>
         </ion-select>
         <ion-select v-model="searchSort" label="Sort by order date" label-placement="stacked" interface="popover">
-          <ion-select-option value="orderDate desc">Newest first</ion-select-option>
-          <ion-select-option value="orderDate asc">Oldest first</ion-select-option>
+          <ion-select-option value="orderDate desc">{{ translate('Newest first') }}</ion-select-option>
+          <ion-select-option value="orderDate asc">{{ translate('Oldest first') }}</ion-select-option>
         </ion-select>
       </SearchFilterCard>
 
@@ -79,9 +79,9 @@
               @ionChange="toggleCurrentPageSelection($event.detail.checked)"
             />
           </span>
-          <ion-label>{{ searchTotal }} orders</ion-label>
+          <ion-label>{{ searchTotal }} {{ translate('orders') }}</ion-label>
           <ion-button fill="clear" size="small" @click="toggleSelectMode">
-            {{ selectMode ? 'Done' : 'Select' }}
+            {{ selectMode ? translate('Done') : translate('Select') }}
           </ion-button>
         </ion-list-header>
         <ion-item
@@ -100,8 +100,8 @@
           />
           <ion-label>
             <h2>{{ order.externalId || order.id }}</h2>
-            <p>{{ order.id }} · {{ order.customerName || order.customerId || 'Unknown customer' }}</p>
-            <p>{{ createdDateLabel(order.orderDate) }} · Ship {{ shipTimeLeftLabel(order.orderDate) }}</p>
+            <p>{{ order.id }} · {{ order.customerName || order.customerId || translate('Unknown customer') }}</p>
+            <p>{{ createdDateLabel(order.orderDate) }} · {{ translate('Ship') }} {{ shipTimeLeftLabel(order.orderDate) }}</p>
           </ion-label>
           <ion-badge :color="statusColor(order.status)" slot="end">
             {{ statusDescription(order.status) }}
@@ -111,22 +111,22 @@
 
       <EmptyState
         v-if="!loading && !error && !searchResults.length"
-        title="No matching orders"
-        message="Adjust the search text or filters to broaden the order list."
+        :title="translate('No matching orders')"
+        :message="translate('Adjust the search text or filters to broaden the order list.')"
       />
 
       <ion-infinite-scroll :disabled="!hasMore" @ionInfinite="loadMore">
-        <ion-infinite-scroll-content loading-spinner="crescent" loading-text="Loading more orders" />
+        <ion-infinite-scroll-content loading-spinner="crescent" :loading-text="translate('Loading more orders')" />
       </ion-infinite-scroll>
     </ion-content>
 
     <ion-footer v-if="selectMode">
       <ion-toolbar>
-        <ion-title size="small">{{ selectedOrderIds.length }} selected</ion-title>
+        <ion-title size="small">{{ selectedOrderIds.length }} {{ translate('selected') }}</ion-title>
         <ion-buttons slot="end" class="bulk-action-buttons">
-          <ion-button :disabled="!selectedOrderIds.length" @click="confirmCancelOrders">Cancel open items</ion-button>
-          <ion-button :disabled="!selectedOrderIds.length" @click="openEditShippingMethodModal">Edit shipping method</ion-button>
-          <ion-button :disabled="!selectedOrderIds.length" @click="openAddTaskModal">Add task</ion-button>
+          <ion-button :disabled="!selectedOrderIds.length" @click="confirmCancelOrders">{{ translate('Cancel open items') }}</ion-button>
+          <ion-button :disabled="!selectedOrderIds.length" @click="openEditShippingMethodModal">{{ translate('Edit shipping method') }}</ion-button>
+          <ion-button :disabled="!selectedOrderIds.length" @click="openAddTaskModal">{{ translate('Add task') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-footer>
@@ -195,10 +195,10 @@ const selectedStatusIds = computed(() => {
   return status && status !== 'All' ? [status] : [];
 });
 const statusFilterLabel = computed(() => {
-  if (!selectedStatusIds.value.length) return 'All statuses';
+  if (!selectedStatusIds.value.length) return translate('All statuses');
   if (selectedStatusIds.value.length === 1) return statusDescription(selectedStatusIds.value[0]);
 
-  return `${selectedStatusIds.value.length} statuses`;
+  return `${selectedStatusIds.value.length} ${translate('statuses')}`;
 });
 const currentPageOrderIds = computed(() => searchResults.value.map((order) => order.id));
 const allCurrentPageSelected = computed(() => {

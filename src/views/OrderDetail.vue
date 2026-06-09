@@ -6,7 +6,7 @@
           <ion-back-button default-href="/orders" />
           <ion-menu-button />
         </ion-buttons>
-        <ion-title>Order details</ion-title>
+        <ion-title>{{ translate('Order details') }}</ion-title>
       </ion-toolbar>
       <ion-progress-bar v-if="loading" type="indeterminate" />
     </ion-header>
@@ -26,7 +26,7 @@
         <div class="order-detail-timeline">
           <ion-list>
             <ion-list-header>
-              <ion-label>Timeline</ion-label>
+              <ion-label>{{ translate('Timeline') }}</ion-label>
             </ion-list-header>
 
             <ion-item v-for="historyEntry in order.history" :key="historyEntry.id">
@@ -41,14 +41,14 @@
             <template v-if="!order.history?.length">
               <ion-item>
                 <ion-label>
-                  Order status
-                  <p>Initial status details</p>
+                  {{ translate('Order status') }}
+                  <p>{{ translate('Initial status details') }}</p>
                 </ion-label>
               </ion-item>
               <ion-item>
                 <ion-label>
-                  Order facility change
-                  <p>Facility details</p>
+                  {{ translate('Order facility change') }}
+                  <p>{{ translate('Facility details') }}</p>
                 </ion-label>
               </ion-item>
             </template>
@@ -64,23 +64,23 @@
             <ion-list lines="none">
               <ion-item>
                 <ion-label>
-                  <p>Email</p>
-                  {{ customer?.email || 'Email not available' }}
+                  <p>{{ translate('Email') }}</p>
+                  {{ customer?.email || translate('Email not available') }}
                 </ion-label>
               </ion-item>
               <ion-item>
                 <ion-label>
-                  <p>Phone</p>
-                  {{ customer?.phone || 'Phone not available' }}
+                  <p>{{ translate('Phone') }}</p>
+                  {{ customer?.phone || translate('Phone not available') }}
                 </ion-label>
               </ion-item>
               <ion-item>
                 <ion-label>
-                  <p>Billing address</p>
+                  <p>{{ translate('Billing address') }}</p>
                   <template v-if="billingAddress?.lines?.length">
                     <div v-for="(line, idx) in billingAddress.lines" :key="idx">{{ line }}</div>
                   </template>
-                  <div v-else>Billing address not available</div>
+                  <div v-else>{{ translate('Billing address not available') }}</div>
                 </ion-label>
               </ion-item>
             </ion-list>
@@ -88,24 +88,24 @@
 
           <ion-card>
             <ion-card-header>
-              <ion-card-title>Order identifications</ion-card-title>
+              <ion-card-title>{{ translate('Order identifications') }}</ion-card-title>
             </ion-card-header>
             <ion-list lines="none">
               <ion-item>
                 <ion-label>
-                  <p>Order name</p>
-                  {{ order.orderName || 'Order name' }}
+                  <p>{{ translate('Order name') }}</p>
+                  {{ order.orderName || translate('Order name') }}
                 </ion-label>
               </ion-item>
               <ion-item>
                 <ion-label>
-                  <p>Order external ID</p>
-                  {{ order.externalId || 'Order external ID' }}
+                  <p>{{ translate('Order external ID') }}</p>
+                  {{ order.externalId || translate('Order external ID') }}
                 </ion-label>
               </ion-item>
               <ion-item>
                 <ion-label>
-                  <p>Order ID</p>
+                  <p>{{ translate('Order ID') }}</p>
                   {{ order.id }}
                 </ion-label>
               </ion-item>
@@ -120,7 +120,7 @@
 
           <ion-card>
             <ion-card-header>
-              <ion-card-title>Order payment preference</ion-card-title>
+              <ion-card-title>{{ translate('Order payment preference') }}</ion-card-title>
             </ion-card-header>
             <ion-list lines="none">
               <ion-item v-for="payment in order.payments" :key="payment.id">
@@ -131,26 +131,26 @@
                 <ion-note slot="end">{{ payment.statusDesc || payment.status }}</ion-note>
               </ion-item>
               <ion-item v-if="!order.payments?.length">
-                <ion-label>No payment preference records</ion-label>
+                <ion-label>{{ translate('No payment preference records') }}</ion-label>
               </ion-item>
             </ion-list>
           </ion-card>
 
           <ion-card>
             <ion-card-header>
-              <ion-card-title>Source</ion-card-title>
+              <ion-card-title>{{ translate('Source') }}</ion-card-title>
             </ion-card-header>
             <ion-list lines="none">
               <ion-item>
                 <ion-label>
-                  <p>Product store name</p>
+                  <p>{{ translate('Product store name') }}</p>
                   {{ order.productStoreName }}
                 </ion-label>
               </ion-item>
               <ion-item>
                 <ion-label>
-                  <p>Sales channel</p>
-                  {{ order.channel || 'Sales channel enum' }}
+                  <p>{{ translate('Sales channel') }}</p>
+                  {{ order.channel || translate('Sales channel enum') }}
                 </ion-label>
               </ion-item>
             </ion-list>
@@ -160,16 +160,16 @@
 
       <ion-segment v-model="selectedSegment">
         <ion-segment-button value="items">
-          <ion-label>Items</ion-label>
+          <ion-label>{{ translate('Items') }}</ion-label>
         </ion-segment-button>
         <ion-segment-button value="ship-groups">
-          <ion-label>Ship groups</ion-label>
+          <ion-label>{{ translate('Ship groups') }}</ion-label>
         </ion-segment-button>
         <ion-segment-button value="holds">
-          <ion-label>Holds</ion-label>
+          <ion-label>{{ translate('Holds') }}</ion-label>
         </ion-segment-button>
         <ion-segment-button value="comms">
-          <ion-label>Comms</ion-label>
+          <ion-label>{{ translate('Comms') }}</ion-label>
         </ion-segment-button>
       </ion-segment>
 
@@ -177,10 +177,10 @@
 
         <ion-list>
           <ion-list-header>
-            <ion-label>Items</ion-label>
+            <ion-label>{{ translate('Items') }}</ion-label>
           </ion-list-header>
           <ion-item lines="full" buttonDetail="false" button>
-            <ion-checkbox :checked="areAllSelected" justify="start" label-placement="end" @ionChange="toggleSelectAll($event.detail.checked)">Select all</ion-checkbox>
+            <ion-checkbox :checked="areAllSelected" justify="start" label-placement="end" @ionChange="toggleSelectAll($event.detail.checked)">{{ translate('Select all') }}</ion-checkbox>
           </ion-item>
           <ion-accordion-group>
             <ion-accordion v-for="group in groupedItems" :key="group.externalId" :value="group.externalId">
@@ -192,20 +192,20 @@
                     </ion-thumbnail>
                     <ion-label>
                       {{ group.name }}
-                      <p>SKU: {{ group.sku }}</p>
-                      <p>Ext ID: {{ group.externalId }}</p>
+                      <p>{{ translate('SKU') }}: {{ group.sku }}</p>
+                      <p>{{ translate('Ext ID') }}: {{ group.externalId }}</p>
                     </ion-label>
                   </ion-checkbox>
                 </ion-item>
                 
                 <ion-label class="tablet">
-                  {{ group.totalQty }} {{ group.totalQty === 1 ? 'unit' : 'units' }}
-                  <p>Qty</p>
+                  {{ group.totalQty }} {{ translate('units') }}
+                  <p>{{ translate('Qty') }}</p>
                 </ion-label>
-                
+
                 <ion-label class="tablet">
                   <ion-badge :color="commonUtil.getStatusColor(group.statusId)">{{ group.status }}</ion-badge>
-                  <p>Status</p>
+                  <p>{{ translate('Status') }}</p>
                 </ion-label>
                 
                 <ion-label class="ion-text-end">
@@ -221,8 +221,8 @@
                     <ion-item lines="none">
                       <ion-checkbox v-model="item.selected" justify="start" label-placement="end">
                         <ion-label>
-                          Item Seq: {{ item.orderItemSeqId }}
-                          <p>Ship Group #{{ item.shipGroupSeqId }}</p>
+                          {{ translate('Item Seq') }}: {{ item.orderItemSeqId }}
+                          <p>{{ translate('Ship Group #') }}{{ item.shipGroupSeqId }}</p>
                         </ion-label>
                       </ion-checkbox>
                     </ion-item>
@@ -241,10 +241,10 @@
 
                     <ion-buttons>
                       <ion-button fill="clear" size="small" color="success">
-                        Complete
+                        {{ translate('Complete') }}
                       </ion-button>
                       <ion-button fill="clear" size="small" color="danger">
-                        Cancel
+                        {{ translate('Cancel') }}
                       </ion-button>
                       <ion-button
                         v-if="item.statusId === 'ITEM_COMPLETED' && item.returnableQty > 0"
@@ -252,7 +252,7 @@
                         size="small"
                         color="warning"
                       >
-                        Return
+                        {{ translate('Return') }}
                       </ion-button>
                       <ion-button fill="clear" size="small" :id="'item-opt-trigger-' + item.orderItemSeqId">
                         <ion-icon slot="icon-only" :icon="ellipsisVertical" />
@@ -260,9 +260,9 @@
                       <ion-popover :trigger="'item-opt-trigger-' + item.orderItemSeqId" dismiss-on-select>
                         <ion-content>
                           <ion-list>
-                            <ion-item buttonDetail="false" button>Edit Quantity</ion-item>
-                            <ion-item buttonDetail="false" button>Change Facility</ion-item>
-                            <ion-item buttonDetail="false" button color="danger">Cancel Item</ion-item>
+                            <ion-item buttonDetail="false" button>{{ translate('Edit Quantity') }}</ion-item>
+                            <ion-item buttonDetail="false" button>{{ translate('Change Facility') }}</ion-item>
+                            <ion-item buttonDetail="false" button color="danger">{{ translate('Cancel Item') }}</ion-item>
                           </ion-list>
                         </ion-content>
                       </ion-popover>
@@ -277,11 +277,11 @@
         <!-- Totals Card -->
         <ion-card class="totals">
           <ion-card-header>
-            <ion-card-title>Totals</ion-card-title>
+            <ion-card-title>{{ translate('Totals') }}</ion-card-title>
           </ion-card-header>
           <ion-list lines="none">
             <ion-item>
-              <ion-label>Subtotal</ion-label>
+              <ion-label>{{ translate('Subtotal') }}</ion-label>
               <ion-label slot="end">{{ money(orderTotals.subtotal, order.currency) }}</ion-label>
             </ion-item>
             <ion-item v-for="(amount, typeId) in orderTotals.adjustments" :key="typeId">
@@ -290,7 +290,7 @@
             </ion-item>
           </ion-list>
           <ion-item class="total-item">
-            <ion-label>Grand Total</ion-label>
+            <ion-label>{{ translate('Grand Total') }}</ion-label>
             <ion-label slot="end" color="dark">{{ money(orderTotals.total, order.currency) }}</ion-label>
           </ion-item>
         </ion-card>
@@ -302,8 +302,8 @@
             <div class="shipgroup">
               <ion-item lines="none">
                 <ion-label>
-                  Ship Group #{{ shipGroup.id }}
-                  <p>{{ shipGroup.facilityName || 'Facility Name' }}</p>
+                  {{ translate('Ship Group #') }}{{ shipGroup.id }}
+                  <p>{{ shipGroup.facilityName || translate('Facility Name') }}</p>
                   <p>{{ shipGroup.itemSummary }}</p>
                 </ion-label>
                 <ion-label slot="end">
@@ -317,11 +317,11 @@
 
             <!-- Inactive chips row: only shown when the attribute is NOT set -->
             <div class="selectable-attributes ion-padding-horizontal ion-padding-top">
-              <ion-chip v-if="shipGroup.maySplit !== 'Y'" outline @click="confirmToggleSplit(shipGroup, true)">Allow split</ion-chip>
-              <ion-chip v-if="!shipGroup.giftMessage" outline @click="openGiftModal(shipGroup)">Gift options</ion-chip>
-              <ion-chip v-if="!shipGroup.shipAfterDate && !shipGroup.shipByDate" outline @click="openShippingDatesModal(shipGroup)">Shipping dates</ion-chip>
-              <ion-chip v-if="!shipGroup.estimatedShipDate && !shipGroup.estimatedDeliveryDate" outline @click="openDeliveryDatesModal(shipGroup)">Delivery dates</ion-chip>
-              <ion-chip v-if="!shipGroup.shippingInstructions" outline @click="openInstructionModal(shipGroup)">Instruction</ion-chip>
+              <ion-chip v-if="shipGroup.maySplit !== 'Y'" outline @click="confirmToggleSplit(shipGroup, true)">{{ translate('Allow split') }}</ion-chip>
+              <ion-chip v-if="!shipGroup.giftMessage" outline @click="openGiftModal(shipGroup)">{{ translate('Gift options') }}</ion-chip>
+              <ion-chip v-if="!shipGroup.shipAfterDate && !shipGroup.shipByDate" outline @click="openShippingDatesModal(shipGroup)">{{ translate('Shipping dates') }}</ion-chip>
+              <ion-chip v-if="!shipGroup.estimatedShipDate && !shipGroup.estimatedDeliveryDate" outline @click="openDeliveryDatesModal(shipGroup)">{{ translate('Delivery dates') }}</ion-chip>
+              <ion-chip v-if="!shipGroup.shippingInstructions" outline @click="openInstructionModal(shipGroup)">{{ translate('Instruction') }}</ion-chip>
             </div>
 
             <div class="edit-selectable-attributes ion-padding-horizontal ion-padding-top">
@@ -332,33 +332,33 @@
               </ion-item>
               <ion-item lines="none" v-if="shipGroup.giftMessage" @click="openGiftModal(shipGroup)">
                 <ion-label>
-                  <p>Gift message</p>
+                  <p>{{ translate('Gift message') }}</p>
                   {{ shipGroup.giftMessage }}
                 </ion-label>
               </ion-item>
               <ion-item lines="none" v-if="shipGroup.shipAfterDate || shipGroup.shipByDate" @click="openShippingDatesModal(shipGroup)">
                 <ion-label>
-                  <p class="outline">Ship after</p>
+                  <p class="outline">{{ translate('Ship after') }}</p>
                   {{ formatDate(shipGroup.shipAfterDate) }}
                 </ion-label>
                 <ion-label>
-                  <p class="outline">Ship by</p>
+                  <p class="outline">{{ translate('Ship by') }}</p>
                     {{ formatDate(shipGroup.shipByDate) }}
                 </ion-label>
               </ion-item>
               <ion-item lines="none" v-if="shipGroup.estimatedShipDate || shipGroup.estimatedDeliveryDate" @click="openDeliveryDatesModal(shipGroup)">
                 <ion-label>
-                  <p class="outline">Estimated ship date</p>
+                  <p class="outline">{{ translate('Estimated ship date') }}</p>
                   {{ formatDate(shipGroup.estimatedShipDate) }}
                 </ion-label>
                 <ion-label>
-                  <p class="outline">Estimated delivery date</p>
+                  <p class="outline">{{ translate('Estimated delivery date') }}</p>
                   {{ formatDate(shipGroup.estimatedDeliveryDate) }}
                 </ion-label>
               </ion-item>
               <ion-item lines="none" v-if="shipGroup.shippingInstructions" @click="openInstructionModal(shipGroup)">
                 <ion-label>
-                  <p class="outline">Instructions</p>
+                  <p class="outline">{{ translate('Instructions') }}</p>
                   {{ shipGroup.shippingInstructions }}
                 </ion-label>
               </ion-item>
@@ -369,12 +369,12 @@
               <ion-header>
                 <ion-toolbar>
                   <ion-buttons slot="start"><ion-button @click="giftModalShipGroupId = null"><ion-icon slot="icon-only" :icon="closeOutline" /></ion-button></ion-buttons>
-                  <ion-title>Gift message</ion-title>
+                  <ion-title>{{ translate('Gift message') }}</ion-title>
                 </ion-toolbar>
               </ion-header>
               <ion-content class="ion-padding">
                 <ion-item>
-                  <ion-textarea label="Gift message" label-placement="stacked" :rows="4" placeholder="Enter gift message" v-model="giftMessageDraft" />
+                  <ion-textarea :label="translate('Gift message')" label-placement="stacked" :rows="4" :placeholder="translate('Enter gift message')" v-model="giftMessageDraft" />
                 </ion-item>
                 <ion-fab vertical="bottom" horizontal="end" slot="fixed">
                   <ion-fab-button @click="saveGiftMessage(shipGroup)">
@@ -389,15 +389,15 @@
               <ion-header>
                 <ion-toolbar>
                   <ion-buttons slot="start"><ion-button @click="shippingDatesModalShipGroupId = null"><ion-icon slot="icon-only" :icon="closeOutline" /></ion-button></ion-buttons>
-                  <ion-title>Shipping dates</ion-title>
+                  <ion-title>{{ translate('Shipping dates') }}</ion-title>
                 </ion-toolbar>
               </ion-header>
               <ion-content class="ion-padding">
                 <ion-item>
-                  <ion-input label="Ship after" label-placement="stacked" type="date" v-model="shippingDatesDraft.shipAfterDate" />
+                  <ion-input :label="translate('Ship after')" label-placement="stacked" type="date" v-model="shippingDatesDraft.shipAfterDate" />
                 </ion-item>
                 <ion-item>
-                  <ion-input label="Ship by" label-placement="stacked" type="date" v-model="shippingDatesDraft.shipByDate" />
+                  <ion-input :label="translate('Ship by')" label-placement="stacked" type="date" v-model="shippingDatesDraft.shipByDate" />
                 </ion-item>
                 <ion-fab vertical="bottom" horizontal="end" slot="fixed">
                   <ion-fab-button @click="saveShippingDates(shipGroup)">
@@ -412,15 +412,15 @@
               <ion-header>
                 <ion-toolbar>
                   <ion-buttons slot="start"><ion-button @click="deliveryDatesModalShipGroupId = null"><ion-icon slot="icon-only" :icon="closeOutline" /></ion-button></ion-buttons>
-                  <ion-title>Delivery dates</ion-title>
+                  <ion-title>{{ translate('Delivery dates') }}</ion-title>
                 </ion-toolbar>
               </ion-header>
               <ion-content class="ion-padding">
                 <ion-item>
-                  <ion-input label="Estimated ship date" label-placement="stacked" type="date" v-model="deliveryDatesDraft.estimatedShipDate" />
+                  <ion-input :label="translate('Estimated ship date')" label-placement="stacked" type="date" v-model="deliveryDatesDraft.estimatedShipDate" />
                 </ion-item>
                 <ion-item>
-                  <ion-input label="Estimated delivery date" label-placement="stacked" type="date" v-model="deliveryDatesDraft.estimatedDeliveryDate" />
+                  <ion-input :label="translate('Estimated delivery date')" label-placement="stacked" type="date" v-model="deliveryDatesDraft.estimatedDeliveryDate" />
                 </ion-item>
                 <ion-fab vertical="bottom" horizontal="end" slot="fixed">
                   <ion-fab-button @click="saveDeliveryDates(shipGroup)">
@@ -435,12 +435,12 @@
               <ion-header>
                 <ion-toolbar>
                   <ion-buttons slot="start"><ion-button @click="instructionModalShipGroupId = null"><ion-icon slot="icon-only" :icon="closeOutline" /></ion-button></ion-buttons>
-                  <ion-title>Shipping instructions</ion-title>
+                  <ion-title>{{ translate('Shipping instructions') }}</ion-title>
                 </ion-toolbar>
               </ion-header>
               <ion-content class="ion-padding">
                 <ion-item>
-                  <ion-textarea label="Instructions" label-placement="stacked" :rows="4" placeholder="Enter shipping instructions" v-model="instructionDraft" />
+                  <ion-textarea :label="translate('Instructions')" label-placement="stacked" :rows="4" :placeholder="translate('Enter shipping instructions')" v-model="instructionDraft" />
                 </ion-item>
                 <ion-fab vertical="bottom" horizontal="end" slot="fixed">
                   <ion-fab-button @click="saveInstruction(shipGroup)">
@@ -454,30 +454,30 @@
               <ion-item lines="none">
                 <ion-label>
                   <p class="overline" v-if="timelineByShipGroup[shipGroup.id]?.firstBrokeredDate">{{ commonUtil.getRelativeTime(timelineByShipGroup[shipGroup.id]?.firstBrokeredDate) }}</p>
-                  Brokered
+                  {{ translate('Brokered') }}
                 </ion-label>
-                <ion-note slot="end">{{ formatTime(timelineByShipGroup[shipGroup.id]?.firstBrokeredDate) || 'Pending' }}</ion-note>
+                <ion-note slot="end">{{ formatTime(timelineByShipGroup[shipGroup.id]?.firstBrokeredDate) || translate('Pending') }}</ion-note>
               </ion-item>
               <ion-item lines="none">
                 <ion-label>
                   <p class="overline" v-if="timelineByShipGroup[shipGroup.id]?.picklistDate">{{ commonUtil.getRelativeTime(timelineByShipGroup[shipGroup.id]?.picklistDate) }}</p>
-                  Pick
+                  {{ translate('Pick') }}
                 </ion-label>
-                <ion-note slot="end">{{ formatTime(timelineByShipGroup[shipGroup.id]?.picklistDate) || 'Pending' }}</ion-note>
+                <ion-note slot="end">{{ formatTime(timelineByShipGroup[shipGroup.id]?.picklistDate) || translate('Pending') }}</ion-note>
               </ion-item>
               <ion-item lines="none">
                 <ion-label>
                   <p class="overline" v-if="timelineByShipGroup[shipGroup.id]?.packedDate">{{ commonUtil.getRelativeTime(timelineByShipGroup[shipGroup.id]?.packedDate) }}</p>
-                  Pack
+                  {{ translate('Pack') }}
                 </ion-label>
-                <ion-note slot="end">{{ formatTime(timelineByShipGroup[shipGroup.id]?.packedDate) || 'Pending' }}</ion-note>
+                <ion-note slot="end">{{ formatTime(timelineByShipGroup[shipGroup.id]?.packedDate) || translate('Pending') }}</ion-note>
               </ion-item>
               <ion-item lines="none">
                 <ion-label>
                   <p class="overline" v-if="timelineByShipGroup[shipGroup.id]?.shippedDate">{{ commonUtil.getRelativeTime(timelineByShipGroup[shipGroup.id]?.shippedDate) }}</p>
-                  Ship
+                  {{ translate('Ship') }}
                 </ion-label>
-                <ion-note slot="end">{{ formatTime(timelineByShipGroup[shipGroup.id]?.shippedDate) || 'Pending' }}</ion-note>
+                <ion-note slot="end">{{ formatTime(timelineByShipGroup[shipGroup.id]?.shippedDate) || translate('Pending') }}</ion-note>
               </ion-item>
             </div>
 
@@ -485,7 +485,7 @@
             <div class="ship-group-items-shipping-columns">
             <div class="shipgroup-items">
               <ion-list-header>
-                <ion-label>Items in Ship Group</ion-label>
+                <ion-label>{{ translate('Items in Ship Group') }}</ion-label>
               </ion-list-header>
               <ion-item v-for="item in shipGroup.items" :key="item.id">
                 <ion-checkbox slot="start" :checked="isItemSelected(shipGroup.id, item.id)" @ionChange="toggleItemSelection(shipGroup.id, item.id, $event.detail.checked)" />
@@ -494,15 +494,15 @@
                 </ion-thumbnail>
                 <ion-label>
                   {{ item.name }}
-                  <p>SKU: {{ item.sku }}</p>
+                  <p>{{ translate('SKU') }}: {{ item.sku }}</p>
                 </ion-label>
-                <ion-note slot="end">{{ item.quantity }} units</ion-note>
+                <ion-note slot="end">{{ item.quantity }} {{ translate('units') }}</ion-note>
               </ion-item>
             </div>
 
             <ion-list class="fulfillment">
               <ion-list-header>
-                <ion-label>Fulfillment</ion-label>
+                <ion-label>{{ translate('Fulfillment') }}</ion-label>
               </ion-list-header>
               <ion-item>
                 <ion-select :label="translate('Carrier')" interface="popover" :placeholder="translate('Select Carrier')" :value="getSelection(shipGroup.id, shipGroup).carrierId" @ionChange="onCarrierChange(shipGroup.id, $event.detail.value)">
@@ -526,10 +526,10 @@
                   <template v-if="shippingAddressLines(shipGroup).length">
                     <div v-for="(line, idx) in shippingAddressLines(shipGroup)" :key="idx">{{ line }}</div>
                   </template>
-                  <div v-else>Shipping address not available</div>
+                  <div v-else>{{ translate('Shipping address not available') }}</div>
                 </ion-label>
                 <ion-label slot="end" class="ion-text-end">
-                  <p>Shipping 100 miles</p>
+                  <p>{{ translate('Shipping information') }}</p>
                   <ion-button fill="clear" size="small" :id="'shipping-opt-trigger-' + shipGroup.id">
                     <ion-icon slot="icon-only" :icon="ellipsisVertical" />
                   </ion-button>
@@ -538,7 +538,7 @@
                       <ion-list>
                         <ion-item button detail="false" @click="openEditShippingAddress(shipGroup)">
                           <ion-icon :icon="createOutline" slot="start" />
-                          Edit
+                          {{ translate('Edit') }}
                         </ion-item>
                       </ion-list>
                     </ion-content>
@@ -553,7 +553,7 @@
                     <ion-buttons slot="start">
                       <ion-button @click="closeEditShippingAddress"><ion-icon slot="icon-only" :icon="closeOutline" /></ion-button>
                     </ion-buttons>
-                    <ion-title>Edit Shipping Address</ion-title>
+                    <ion-title>{{ translate('Edit Shipping Address') }}</ion-title>
                     <ion-buttons slot="end">
                     </ion-buttons>
                   </ion-toolbar>
@@ -561,23 +561,23 @@
                 <ion-content class="ion-padding">
                   <ion-list>
                     <ion-item>
-                      <ion-input label="Address line 1" label-placement="stacked" placeholder="Street address" v-model="shippingAddressForm.address1" />
+                      <ion-input :label="translate('Address line 1')" label-placement="stacked" :placeholder="translate('Street address')" v-model="shippingAddressForm.address1" />
                     </ion-item>
                     <ion-item>
-                      <ion-input label="Address line 2" label-placement="stacked" placeholder="Apt, suite, etc." v-model="shippingAddressForm.address2" />
+                      <ion-input :label="translate('Address line 2')" label-placement="stacked" :placeholder="translate('Apt, suite, etc.')" v-model="shippingAddressForm.address2" />
                     </ion-item>
                     <ion-item>
-                      <ion-input label="City" label-placement="stacked" placeholder="City" v-model="shippingAddressForm.city" />
+                      <ion-input :label="translate('City')" label-placement="stacked" :placeholder="translate('City')" v-model="shippingAddressForm.city" />
                     </ion-item>
                     <ion-item>
-                      <ion-input label="Postal code" label-placement="stacked" placeholder="Postal code" v-model="shippingAddressForm.postalCode" />
+                      <ion-input :label="translate('Postal code')" label-placement="stacked" :placeholder="translate('Postal code')" v-model="shippingAddressForm.postalCode" />
                     </ion-item>
                     <ion-item>
                       <ion-select
-                        label="Country"
+                        :label="translate('Country')"
                         label-placement="stacked"
                         interface="popover"
-                        placeholder="Select Country"
+                        :placeholder="translate('Select Country')"
                         v-model="shippingAddressForm.countryGeoId"
                         @ionChange="shippingAddressForm.stateProvinceGeoId = ''"
                       >
@@ -588,10 +588,10 @@
                     </ion-item>
                     <ion-item>
                       <ion-select
-                        label="State / Province"
+                        :label="translate('State / Province')"
                         label-placement="stacked"
                         interface="popover"
-                        placeholder="Select State / Province"
+                        :placeholder="translate('Select State / Province')"
                         :disabled="!shippingAddressForm.countryGeoId"
                         v-model="shippingAddressForm.stateProvinceGeoId"
                       >
@@ -612,7 +612,7 @@
             </div>
 
             <div class="actions ion-padding-horizontal ion-padding-bottom">
-              <ion-button v-if="isVirtualFacility(shipGroup)" fill="clear" @click="brokerShipGroup(shipGroup.id)">Broker ship group</ion-button>
+              <ion-button v-if="isVirtualFacility(shipGroup)" fill="clear" @click="brokerShipGroup(shipGroup.id)">{{ translate('Broker ship group') }}</ion-button>
               <ion-button fill="clear" :disabled="!selectedItemsForShipGroup(shipGroup.id).length" @click="isVirtualFacility(shipGroup) ? parkSelectedItems(shipGroup) : rejectSelectedItems(shipGroup)">{{ isVirtualFacility(shipGroup) ? translate('Park Items') : translate('Pull back') }}</ion-button>
               <ion-button v-if="isVirtualFacility(shipGroup)" fill="clear" :disabled="!selectedItemsForShipGroup(shipGroup.id).length" @click="releaseSelectedItems(shipGroup)">{{ translate('Release') }}</ion-button>
               <ion-button fill="clear" @click="openAddItemModal(shipGroup)">{{ translate('Add Items') }}</ion-button>
@@ -622,8 +622,8 @@
 
         <template v-else>
           <EmptyState
-            title="No ship groups"
-            message="There are no ship groups defined for this order."
+            :title="translate('No ship groups')"
+            :message="translate('There are no ship groups defined for this order.')"
           />
         </template>
       </div>
@@ -712,32 +712,32 @@
     <ion-content v-else-if="loading">
       <ion-list>
         <ion-item lines="none">
-          <ion-label>Loading order...</ion-label>
+          <ion-label>{{ translate('Loading order...') }}</ion-label>
         </ion-item>
       </ion-list>
     </ion-content>
 
     <ion-content v-slot:default v-else-if="error">
       <ErrorState
-        title="Order failed to load"
+        :title="translate('Order failed to load')"
         :message="error"
       />
     </ion-content>
 
     <ion-content v-else>
       <EmptyState
-        title="Order not found"
-        message="The selected order is not available in this workspace."
+        :title="translate('Order not found')"
+        :message="translate('The selected order is not available in this workspace.')"
       />
     </ion-content>
 
     <ion-footer v-if="order && selectedSegment === 'items'">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button fill="outline" color="danger" v-if="!['ORDER_CANCELLED', 'ORDER_COMPLETED'].includes(order.statusId)" :disabled="!selectedItems.length" @click="cancelOrderItems">Cancel</ion-button>
+          <ion-button fill="outline" color="danger" v-if="!['ORDER_CANCELLED', 'ORDER_COMPLETED'].includes(order.statusId)" :disabled="!selectedItems.length" @click="cancelOrderItems">{{ translate('Cancel') }}</ion-button>
         </ion-buttons>
         <ion-buttons slot="end">
-          <ion-button fill="solid" color="warning">Return</ion-button>
+          <ion-button fill="solid" color="warning">{{ translate('Return') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-footer>
@@ -1132,14 +1132,14 @@ async function updateShipGroup(shipGroupId: string, payload: Record<string, any>
 // 1. Allow Split
 async function confirmToggleSplit(shipGroup: any, enable: boolean) {
   const alert = await alertController.create({
-    header: 'Allow split',
+    header: translate('Allow split'),
     message: enable
-      ? 'Are you sure you want to allow split?'
-      : 'Are you sure you want to disable splitting for this order?',
+      ? translate('Are you sure you want to allow split?')
+      : translate('Are you sure you want to disable splitting for this order?'),
     buttons: [
-      { text: 'Cancel', role: 'cancel' },
+      { text: translate('Cancel'), role: 'cancel' },
       {
-        text: 'Yes',
+        text: translate('Yes'),
         handler: async () => {
           try {
             await updateShipGroup(shipGroup.id, { maySplit: enable ? 'Y' : 'N' });
