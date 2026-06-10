@@ -495,7 +495,10 @@
                   <p class="overline">{{ commonUtil.getProductIdentificationValue(productIdentificationPref.secondaryId, getProduct(item.productId)) }}</p>
                   {{ commonUtil.getProductIdentificationValue(productIdentificationPref.primaryId, getProduct(item.productId)) ? commonUtil.getProductIdentificationValue(productIdentificationPref.primaryId, getProduct(item.productId)) : item.productId }}
                 </ion-label>
-                <ion-note slot="end">{{ item.quantity }} {{ translate('units') }}</ion-note>
+                
+                <ion-button slot="end" color="medium" fill="clear" size="small" @click.stop="viewInventory(item.productId)">
+                  <ion-icon slot="icon-only" :icon="cubeOutline" />
+                </ion-button>
               </ion-item>
             </div>
 
@@ -748,7 +751,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { IonAccordion, IonAccordionGroup, IonBackButton, IonBadge, IonButton, IonButtons, IonCard, IonCardHeader, IonCardTitle, IonCheckbox, IonChip, IonContent, IonFab, IonFabButton, IonFooter, IonHeader, IonIcon, IonInput, IonItem, IonLabel, IonList, IonListHeader, IonMenuButton, IonModal, IonNote, IonPage, IonPopover, IonProgressBar, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonTextarea, IonThumbnail, IonTitle, IonToolbar, alertController, modalController } from '@ionic/vue';
 import { storeToRefs } from 'pinia';
 import { DateTime } from 'luxon';
-import { businessOutline, chevronDown, closeOutline, createOutline, ellipsisVertical, gitBranchOutline, saveOutline, sendOutline } from 'ionicons/icons';
+import { businessOutline, chevronDown, closeOutline, createOutline, cubeOutline, ellipsisVertical, gitBranchOutline, saveOutline, sendOutline } from 'ionicons/icons';
 import { useOrderDetailStore } from '@/store/orderDetail';
 import { useSeedStore } from '@/store/seed';
 import { useProductCacheStore } from '@/store/productCache';
@@ -757,6 +760,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import ErrorState from '@/components/ErrorState.vue';
 import AddItemToOrderModal from '@/components/AddItemToOrderModal.vue';
 import RejectItemsModal from '@/components/RejectItemsModal.vue';
+import ProductInventoryModal from '@/components/ProductInventoryModal.vue';
 import FacilityModal from '@/components/FacilityModal.vue';
 import PhysicalFacilityModal from '@/components/PhysicalFacilityModal.vue';
 import RoutingGroupModal from '@/components/RoutingGroupModal.vue';
@@ -765,6 +769,7 @@ import { showToast } from '@/utils';
 import { useOrderTaskStore } from '@/store/orderTask';
 import { useUserStore } from '@/store/user';
 import { useProductStore } from '@/store/productStore';
+import { useStockStore } from '@/store/stock';
 
 const props = defineProps<{
   orderId: string;
@@ -1440,6 +1445,14 @@ async function parkFullOrder() {
   } catch {
     await showToast(translate('Failed to park the order. Please try again.'));
   }
+}
+
+async function viewInventory(productId: string) {
+  const modal = await modalController.create({
+    component: ProductInventoryModal,
+    componentProps: { productId }
+  });
+  await modal.present();
 }
 
 async function openAddItemModal(shipGroup: any) {
