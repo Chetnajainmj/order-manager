@@ -186,16 +186,15 @@
             <ion-accordion v-for="group in groupedItems" :key="group.externalId" :value="group.externalId">
               <div slot="header" class="list-item order-item-rollup">
                 <ion-item class="item-key-header" lines="none">
-                  <ion-checkbox v-model="group.selected" justify="start" label-placement="end" @click.stop>
-                    <ion-thumbnail v-if="group.imageUrl">
-                      <img :src="group.imageUrl" alt="Product Image" />
-                    </ion-thumbnail>
-                    <ion-label>
-                      {{ group.name }}
-                      <p>{{ translate('SKU') }}: {{ group.sku }}</p>
-                      <p>{{ translate('Ext ID') }}: {{ group.externalId }}</p>
-                    </ion-label>
-                  </ion-checkbox>
+                  <ion-checkbox slot="start" v-model="group.selected" @click.stop />
+                  <ion-thumbnail slot="start" v-image-preview="getProduct(group.productId)" :key="getProduct(group.productId)?.mainImageUrl">
+                    <DxpShopifyImg :src="getProduct(group.productId)?.mainImageUrl" :key="getProduct(group.productId)?.mainImageUrl" size="small" />
+                  </ion-thumbnail>
+                  <ion-label>
+                    <p class="overline">{{ commonUtil.getProductIdentificationValue(productIdentificationPref.secondaryId, getProduct(group.productId) || {}) }}</p>
+                    {{ commonUtil.getProductIdentificationValue(productIdentificationPref.primaryId, getProduct(group.productId) || {}) || group.name }}
+                    <p>{{ translate('Ext ID') }}: {{ group.externalId }}</p>
+                  </ion-label>
                 </ion-item>
                 
                 <ion-label class="tablet">
@@ -489,12 +488,12 @@
               </ion-list-header>
               <ion-item v-for="item in shipGroup.items" :key="item.id">
                 <ion-checkbox slot="start" :checked="isItemSelected(shipGroup.id, item.id)" @ionChange="toggleItemSelection(shipGroup.id, item.id, $event.detail.checked)" />
-                <ion-thumbnail slot="start" v-if="item.imageUrl">
-                  <img :src="item.imageUrl" :alt="item.name" />
+                <ion-thumbnail slot="start" v-image-preview="getProduct(item.productId)" :key="getProduct(item.productId)?.mainImageUrl">
+                    <DxpShopifyImg :src="item?.imageUrl" :key="getProduct(item.productId)?.mainImageUrl" size="small" />
                 </ion-thumbnail>
                 <ion-label>
-                  {{ item.name }}
-                  <p>{{ translate('SKU') }}: {{ item.sku }}</p>
+                  <p class="overline">{{ commonUtil.getProductIdentificationValue(productIdentificationPref.secondaryId, getProduct(item.productId)) }}</p>
+                  {{ commonUtil.getProductIdentificationValue(productIdentificationPref.primaryId, getProduct(item.productId)) ? commonUtil.getProductIdentificationValue(productIdentificationPref.primaryId, getProduct(item.productId)) : item.productId }}
                 </ion-label>
                 <ion-note slot="end">{{ item.quantity }} {{ translate('units') }}</ion-note>
               </ion-item>
@@ -761,10 +760,11 @@ import RejectItemsModal from '@/components/RejectItemsModal.vue';
 import FacilityModal from '@/components/FacilityModal.vue';
 import PhysicalFacilityModal from '@/components/PhysicalFacilityModal.vue';
 import RoutingGroupModal from '@/components/RoutingGroupModal.vue';
-import { api, commonUtil, translate } from '@common';
+import { api, commonUtil, DxpShopifyImg, translate } from '@common';
 import { showToast } from '@/utils';
 import { useOrderTaskStore } from '@/store/orderTask';
 import { useUserStore } from '@/store/user';
+import { useProductStore } from '@/store/productStore';
 
 const props = defineProps<{
   orderId: string;
@@ -776,6 +776,7 @@ const productCache = useProductCacheStore();
 
 const { isLoading: loading, error } = storeToRefs(orderDetailStore);
 
+const productIdentificationPref = computed(() => useProductStore().getProductIdentificationPref);
 /**
  * View model — adapts the raw order master-detail payload to the shape this template
  * already binds, joining IDs to labels through the seed store and product cache. The
@@ -839,6 +840,7 @@ const order = computed(() => {
         // variant ("XS / Blue", ~= itemDescription). Prefer the title, then variant, then id.
         return {
           id: item.orderItemSeqId,
+          productId: item.productId,
           name: product?.parentProductName || product?.productName || item.itemDescription || item.productId,
           sku: product?.sku || item.productId,
           imageUrl: product?.mainImageUrl || '',
@@ -911,9 +913,9 @@ const groupedItems = computed(() => {
 
   const groups: Record<string, {
     externalId: string;
+    productId: string;
     name: string;
     sku: string;
-    imageUrl?: string;
     unitPrice: number;
     currency: string;
     totalQty: number;
@@ -948,12 +950,11 @@ const groupedItems = computed(() => {
       const returnableQty = Math.max(0, Number(item.quantity || 0) - returnedQty);
 
       if (!groups[externalId]) {
-        const product = productCache.getProduct(rawItem?.productId);
         groups[externalId] = {
           externalId,
+          productId: rawItem?.productId || '',
           name: item.name,
           sku: item.sku,
-          imageUrl: product?.mainImageUrl || '',
           unitPrice,
           currency: order.value.currency,
           totalQty: orderDetailStore.quantitiesByExternalId[externalId] || 0,
@@ -1013,6 +1014,10 @@ function toggleSelectAll(checked: boolean) {
       item.selected = checked;
     });
   });
+}
+
+function getProduct(productId: string) {
+  return useProductCacheStore().getProduct(productId);
 }
 
 onMounted(() => loadOrder(props.orderId));
