@@ -31,7 +31,7 @@
             <!-- Date Today -->
             <p class="overline">Today</p>
             <!-- Order Count today -->
-            <h1 class="big-number">{{ (store.fulfillmentProgress.totalOrdersCount || 0).toLocaleString() }}</h1>
+            <h1 class="big-number">{{ (fulfillmentProgress.totalOrdersCount || 0).toLocaleString() }}</h1>
             <!-- Time since day start -->
             <p class="time-elapsed">{{ new Date().getHours() }} hours since day start</p>
           </div>
@@ -72,7 +72,7 @@
           button
           router-link="/open"
           title="Open Orders"
-          :stat="store.openOrders.openOrdersCount || 0"
+          :stat="openOrders.openOrdersCount || 0"
           :subtitle="oldestOpenOrderDateStr"
         />
 
@@ -80,13 +80,13 @@
         <!-- BUSINESS LOGIC COMMENT: Navigate to Unfillable Orders list on click -->
         <!-- stat: number of orders where facility id equals unfillable -->
         <StatCard button router-link="/unfillable" title="Unfillable" :stat="totalUnfillable">
-          <Sparkline :points="store.unfillableTrend" color="danger" />
+          <Sparkline :points="unfillableTrend" color="danger" />
         </StatCard>
 
         <!-- Card 3: Order Hold Tasks — drilldown follow-up -->
         <!-- BUSINESS LOGIC COMMENT: Display list of tasks requiring resolution -->
         <!-- stat: number of orders with hold tasks -->
-        <StatCard title="Order Hold Tasks" :stat="store.holdTasks.holdTasksTotalCount || 0">
+        <StatCard title="Order Hold Tasks" :stat="holdTasks.holdTasksTotalCount || 0">
           <ion-list lines="none" class="hold-tasks-list">
             <!-- Substitute workefforts -->
             <ion-item button :detail="true" router-link="/unfillable">
@@ -94,7 +94,7 @@
                 Substitute
                 <!-- number of workefforts where purpose type is substitute -->
               </ion-label>
-              <p slot="end">{{ store.holdTasks.holdSubstituteCount || 0 }} tasks</p>
+              <p slot="end">{{ holdTasks.holdSubstituteCount || 0 }} tasks</p>
             </ion-item>
 
             <!-- Bad Address workefforts -->
@@ -103,7 +103,7 @@
                 Bad Address
                 <!-- number of workefforts where purpose type is bad address -->
               </ion-label>
-              <p slot="end">{{ store.holdTasks.holdBadAddressCount || 0 }} tasks</p>
+              <p slot="end">{{ holdTasks.holdBadAddressCount || 0 }} tasks</p>
             </ion-item>
 
             <!-- Fraud Risk workefforts -->
@@ -112,7 +112,7 @@
                 Fraud Risk
                 <!-- number of workefforts where purpose type is fraud -->
               </ion-label>
-              <p slot="end">{{ store.holdTasks.holdFraudRiskCount || 0 }} tasks</p>
+              <p slot="end">{{ holdTasks.holdFraudRiskCount || 0 }} tasks</p>
             </ion-item>
           </ion-list>
         </StatCard>
@@ -183,18 +183,18 @@
               <ion-icon slot="end" :icon="informationCircleOutline" />
             </ion-item>
             <ion-list lines="none">
-              <h1>{{ Math.round((store.facilityFulfillmentProgress?.fillRate || 0) * 100) }}%</h1>
+              <h1>{{ Math.round((facilityFulfillmentProgress?.fillRate || 0) * 100) }}%</h1>
               <ion-item>
                 <ion-label>Order allocated</ion-label>
-                <ion-label slot="end">{{ store.facilityFulfillmentProgress?.ordersAllocated ?? 0 }}/{{ store.facilityFulfillmentProgress?.capacityLimit ?? 'Unlimited' }}</ion-label>
+                <ion-label slot="end">{{ facilityFulfillmentProgress?.ordersAllocated ?? 0 }}/{{ facilityFulfillmentProgress?.capacityLimit ?? 'Unlimited' }}</ion-label>
               </ion-item>
               <ion-item>
                 <ion-label>Orders packed</ion-label>
-                <ion-label slot="end" color="success">{{ store.facilityFulfillmentProgress?.ordersPacked ?? 0 }}</ion-label>
+                <ion-label slot="end" color="success">{{ facilityFulfillmentProgress?.ordersPacked ?? 0 }}</ion-label>
               </ion-item>
               <ion-item>
                 <ion-label>Orders rejected</ion-label>
-                <ion-label slot="end" color="danger">{{ store.facilityFulfillmentProgress?.ordersRejected ?? 0 }}</ion-label>
+                <ion-label slot="end" color="danger">{{ facilityFulfillmentProgress?.ordersRejected ?? 0 }}</ion-label>
               </ion-item>
             </ion-list>
           </ion-card>
@@ -203,7 +203,7 @@
           <ion-card class="orders">
             <p class="overline title">Orders Pending Fulfillment</p>
             <div class="pending">
-              <h1>{{ store.facilityFulfillmentProgress?.totalPending ?? 0 }}</h1>
+              <h1>{{ facilityFulfillmentProgress?.totalPending ?? 0 }}</h1>
               <ion-item lines="none">
                 <ion-label>
                   <p>Oldest order assigned</p>
@@ -214,11 +214,11 @@
             <div class="fulfill">
               <ion-item lines="full" :button="true" :detail="true" :router-link="workflowRoute('/open')">
                 <ion-icon :icon="mailUnreadOutline" slot="start" />
-                <ion-label>{{ store.facilityFulfillmentProgress?.openCount ?? 0 }} open</ion-label>
+                <ion-label>{{ facilityFulfillmentProgress?.openCount ?? 0 }} open</ion-label>
               </ion-item>
               <ion-item lines="none" :button="true" :detail="true" :router-link="workflowRoute('/inflight')">
                 <ion-icon :icon="mailOpenOutline" slot="start" />
-                <ion-label>{{ store.facilityFulfillmentProgress?.inProgressCount ?? 0 }} in progress</ion-label>
+                <ion-label>{{ facilityFulfillmentProgress?.inProgressCount ?? 0 }} in progress</ion-label>
               </ion-item>
             </div>
           </ion-card>
@@ -272,8 +272,8 @@ import {
   mailUnreadOutline,
   mailOpenOutline
 } from 'ionicons/icons';
-import { computed, onMounted, watch } from 'vue';
-import { translate, RadioFacetGroup, StatCard, Sparkline } from '@common';
+import { computed, watch } from 'vue';
+import { translate, RadioFacetGroup, StatCard, Sparkline, commonUtil } from '@common';
 import { useCustomerServiceStore } from '@/store/customerService';
 import { useProductStore } from '@/store/productStore';
 import { DateTime } from 'luxon';
@@ -281,17 +281,27 @@ import { DateTime } from 'luxon';
 const store = useCustomerServiceStore();
 const productStore = useProductStore() as any;
 
+const fulfillmentProgress = computed(() => store.getFulfillmentProgress);
+const openOrders = computed(() => store.getOpenOrders);
+const holdTasks = computed(() => store.getHoldTasks);
+const facilityFulfillmentProgress = computed(() => store.getFacilityFulfillmentProgress);
+const facilityOrderVolume = computed(() => store.getFacilityOrderVolume);
+const facilityFulfillmentVelocity = computed(() => store.getFacilityFulfillmentVelocity);
+const facilityPartialFulfillments = computed(() => store.getFacilityPartialFulfillments);
+const unfillableTrend = computed(() => store.unfillableTrend);
+const facilities = computed(() => store.facilities);
+
 const selectedStoreId = ref('');
 const selectedFacilityId = ref('WH_RNO');
 const searchQuery = ref('');
 const selectedDimension = ref('volume');
 
 const oldestOpenOrderDateStr = computed(() => {
-  const timestamp = store.openOrders.oldestOpenOrderDate;
-  return timestamp ? 'Oldest: ' + DateTime.fromMillis(timestamp).toFormat('LLL d, yyyy h:mm a') : 'No open orders';
+  const timestamp = openOrders.value.oldestOpenOrderDate;
+  return timestamp ? 'Oldest: ' + commonUtil.getDateAndTime(timestamp) : 'No open orders';
 });
 
-const totalUnfillable = computed(() => store.unfillableTrend.reduce((sum, val) => sum + val, 0));
+const totalUnfillable = computed(() => unfillableTrend.value.reduce((sum, val) => sum + val, 0));
 
 const storeOptions = computed(() => {
   return productStore.getProductStores.map((pStore: any) => ({
@@ -328,7 +338,7 @@ watch(selectedFacilityId, (newFacilityId) => {
 });
 
 const fulfillmentStats = computed(() => {
-  const fp = store.fulfillmentProgress || {};
+  const fp = fulfillmentProgress.value || {};
   const total = fp.totalShipGroupsCount || 0;
   const brokered = fp.brokeredShipGroupsCount || 0;
   const picked = fp.pickedShipGroupsCount || 0;
@@ -347,7 +357,7 @@ const selectedStoreName = computed(
 );
 
 function getFacilityName(facilityId: string) {
-  const fac = store.facilities.find(f => f.id === facilityId);
+  const fac = facilities.value.find(f => f.id === facilityId);
   return fac ? fac.name : facilityId;
 }
 
@@ -359,21 +369,21 @@ const selectedFacilityName = computed(() => {
 const filteredFacilities = computed(() => {
   let list: any[] = [];
   if (selectedDimension.value === 'volume') {
-    list = store.facilityOrderVolume.map(item => ({
+    list = facilityOrderVolume.value.map(item => ({
       facilityId: item.facilityId,
       name: item.facilityName || getFacilityName(item.facilityId),
       value: item.lastOrderCount,
       label: `${item.lastOrderCount} orders`
     }));
   } else if (selectedDimension.value === 'velocity') {
-    list = store.facilityFulfillmentVelocity.map(item => ({
+    list = facilityFulfillmentVelocity.value.map(item => ({
       facilityId: item.facilityId,
       name: item.facilityName || getFacilityName(item.facilityId),
       value: item.fulfillmentVelocity || 0,
       label: `${Math.round((item.fulfillmentVelocity || 0) * 100)}% velocity (${item.shipGroupCount || 0}/${item.lastOrderCount || 0} orders)`
     }));
   } else if (selectedDimension.value === 'partial') {
-    list = store.facilityPartialFulfillments.map(item => ({
+    list = facilityPartialFulfillments.value.map(item => ({
       facilityId: item.facilityId,
       name: item.facilityName || getFacilityName(item.facilityId),
       value: item.partialFulfillmentRatio || 0,
@@ -417,12 +427,12 @@ function workflowRoute(path: string) {
 
 
 const oldestAssignedRelativeStr = computed(() => {
-  const timestamp = store.facilityFulfillmentProgress?.oldestAssignedTime;
-  return timestamp ? DateTime.fromMillis(timestamp).toRelative() : 'No pending orders';
+  const timestamp = facilityFulfillmentProgress.value?.oldestAssignedTime;
+  return timestamp ? commonUtil.getRelativeTime(timestamp) : 'No pending orders';
 });
 
 const progressPercent = computed(() => {
-  const progress = store.facilityFulfillmentProgress;
+  const progress = facilityFulfillmentProgress.value;
   if (!progress) return { packed: 0, rejected: 0, allocated: 0 };
   const total = progress.capacityLimit || (progress.assignedBeforeTodayCount + progress.ordersAllocated) || 1;
   const remainingAllocated = Math.max(0, progress.ordersAllocated - progress.ordersPacked - progress.ordersRejected);
@@ -434,19 +444,19 @@ const progressPercent = computed(() => {
 });
 
 const carrierPickupTimeStr = computed(() => {
-  const time = store.facilityFulfillmentProgress?.carrierPickupTime;
+  const time = facilityFulfillmentProgress.value?.carrierPickupTime;
   if (!time) return '04:30pm';
   return DateTime.fromFormat(time, 'HH:mm:ss').toFormat('hh:mma').toLowerCase();
 });
 
 const storeClosingTimeStr = computed(() => {
-  const time = store.facilityFulfillmentProgress?.closeTime;
+  const time = facilityFulfillmentProgress.value?.closeTime;
   if (!time) return '07:00pm';
   return DateTime.fromFormat(time, 'HH:mm:ss').toFormat('hh:mma').toLowerCase();
 });
 
 const storeCloseRemainingStr = computed(() => {
-  const progress = store.facilityFulfillmentProgress;
+  const progress = facilityFulfillmentProgress.value;
   if (!progress || !progress.closeTime || !progress.facilityTimeZone) {
     return 'Store closes in 2 hours';
   }

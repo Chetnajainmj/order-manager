@@ -237,7 +237,15 @@ export const useCustomerServiceStore = defineStore('customerService', {
         });
         return match ? match.shipGroupCount : 0;
       });
-    }
+    },
+    getFulfillmentProgress: (state) => state.fulfillmentProgress,
+    getOpenOrders: (state) => state.openOrders,
+    getUnfillable: (state) => state.unfillable,
+    getHoldTasks: (state) => state.holdTasks,
+    getFacilityOrderVolume: (state) => state.facilityOrderVolume,
+    getFacilityFulfillmentVelocity: (state) => state.facilityFulfillmentVelocity,
+    getFacilityPartialFulfillments: (state) => state.facilityPartialFulfillments,
+    getFacilityFulfillmentProgress: (state) => state.facilityFulfillmentProgress
   },
   actions: {
     async fetchFulfillmentProgress(productStoreId?: string) {
