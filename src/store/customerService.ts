@@ -70,6 +70,9 @@ function generateOrders(): WorkflowOrder[] {
     } else if (bucketRoll < 0.45) {
       bucket = 'fraud';
       statusId = 'ORDER_HELD';
+    } else if (bucketRoll < 0.6) {
+      bucket = 'brokering';
+      statusId = 'ORDER_APPROVED';
     } else if (bucketRoll < 0.75) {
       bucket = 'open';
       statusId = 'ORDER_APPROVED';
@@ -165,6 +168,7 @@ export const useCustomerServiceStore = defineStore('customerService', {
     filters: {
       unfillable: emptyFilters(),
       fraud: emptyFilters(),
+      brokering: emptyFilters(),
       open: emptyFilters(),
       inflight: emptyFilters(),
       packed: emptyFilters()
@@ -172,6 +176,7 @@ export const useCustomerServiceStore = defineStore('customerService', {
     selection: {
       unfillable: [] as string[],
       fraud: [] as string[],
+      brokering: [] as string[],
       open: [] as string[],
       inflight: [] as string[],
       packed: [] as string[]
@@ -200,6 +205,7 @@ export const useCustomerServiceStore = defineStore('customerService', {
       return {
         unfillable: state.orders.filter((order) => inBucket(order, 'unfillable')).length,
         fraud: state.orders.filter((order) => inBucket(order, 'fraud')).length,
+        brokering: state.orders.filter((order) => inBucket(order, 'brokering')).length,
         open: workflowOrders.open.length,
         inflight: workflowOrders.inflight.length,
         packed: workflowOrders.packed.length
@@ -267,6 +273,10 @@ export const BULK_ACTIONS: Record<WorkflowBucket, BulkActionDefinition[]> = {
   ],
   fraud: [
     { id: 'release', label: 'Release order' },
+    { id: 'cancel', label: 'Cancel', confirmText: 'Cancel selected orders?' }
+  ],
+  brokering: [
+    { id: 'rebroker', label: 'Broker now' },
     { id: 'cancel', label: 'Cancel', confirmText: 'Cancel selected orders?' }
   ],
   open: [
