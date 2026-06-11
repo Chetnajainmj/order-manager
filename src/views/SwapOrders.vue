@@ -5,14 +5,14 @@
         <ion-buttons slot="start">
           <ion-menu-button />
         </ion-buttons>
-        <ion-title>{{ translate('Unfillable orders') }}</ion-title>
+        <ion-title>{{ translate('Swap') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content>
       <SearchFilterCard
         v-model="searchQuery"
-        :placeholder="translate('Search unfillable orders...')"
+        :placeholder="translate('Search swap orders...')"
         @search="fetchSwapTasks()"
         @clear="clearFilters"
       >
@@ -26,7 +26,7 @@
         </ion-select>
       </SearchFilterCard>
 
-      <div class="unfillable-parking-list">
+      <div class="swap-order-list">
         <ion-card v-if="swapTasks.length" v-for="task in swapTasks" :key="task.workEffortId">
           <ion-card-header>
             <div class="shipgroup-header-row">
@@ -82,8 +82,8 @@
                     <DxpShopifyImg :src="getProduct(item.productId).mainImageUrl" :key="getProduct(item.productId).mainImageUrl" size="small" />
                   </ion-thumbnail>
                   <ion-label>
-                    {{ getProduct(item.productId)?.productName || item.productName || item.itemDescription }}
-                    <p>{{ translate('SKU') }}: {{ getProduct(item.productId)?.internalName || item.internalName }}</p>
+                    <p class="overline">{{ commonUtil.getProductIdentificationValue(productIdentificationPref.secondaryId, getProduct(item.productId)) }}</p>
+                    {{ commonUtil.getProductIdentificationValue(productIdentificationPref.primaryId, getProduct(item.productId)) ? commonUtil.getProductIdentificationValue(productIdentificationPref.primaryId, getProduct(item.productId)) : item.productId }}
                   </ion-label>
                   <ion-note slot="end">{{ money(item.unitPrice) }}</ion-note>
                 </ion-item>
@@ -194,6 +194,7 @@ import { useOrderTaskStore } from '@/store/orderTask';
 import { useSeedStore } from '@/store/seed';
 import { useProductMaster } from '@/composables/useProductMaster';
 import { useProductCacheStore } from '@/store/productCache';
+import { useProductStore } from '@/store/productStore';
 import { useStockStore } from '@/store/stock';
 import SuggestedProductActionPopover from '@/components/SuggestedProductActionPopover.vue';
 
@@ -208,6 +209,7 @@ const dateAfter = ref('');
 const dateBefore = ref('');
 const orderChannel = ref('');
 
+const productIdentificationPref = computed(() => useProductStore().getProductIdentificationPref);
 const swapTasks = computed(() => orderTaskStore.getSwapTasks);
 const isScrollable = computed(() => orderTaskStore.isSwapTasksScrollable);
 const hasFilters = computed(() => !!(searchQuery.value || dateAfter.value || dateBefore.value || orderChannel.value));
@@ -249,13 +251,20 @@ function isUnavailable(item: any): boolean {
 
 function hasSubstituteStock(productId: string, facilityId: string): boolean {
   const stock = useStockStore().getProductStock(productId, facilityId);
-  return (stock?.atp ?? 0) > 0;
+  return (stock?.computedAtp ?? 0) > 0;
 }
 
 function getSuggestedItems(task: any): { list: any[]; newTotal: number; suggestedRefund: number } {
   const { items, grandTotal, facilityId } = task;
   let newTotal = 0;
   const list = (items ?? []).map((item: any) => {
+    // Custom substitute selected by user — always show it, no stock check needed
+    if (item._customSubstitute) {
+      const custom = item._customSubstitute;
+      newTotal += (custom.price ?? 0) * (item.quantity ?? 1);
+      return { ...custom, quantity: item.quantity, _isSubstitute: true, _cancel: false, _noReplacement: false, _sourceOrderItemSeqId: item.orderItemSeqId };
+    }
+
     const substitute = getSubstitute(item);
     const substituteAvailable = substitute && hasSubstituteStock(substitute.productId, facilityId);
 
@@ -432,7 +441,7 @@ async function parkOrder(task: any) {
 
   try {
     await orderTaskStore.parkOrder(task.orderId, task.shipGroupSeqId, facilityId);
-    await orderTaskStore.changeTaskStatus(task.workEffortId, 'TASK_PARKED');
+    //await orderTaskStore.changeTaskStatus(task.workEffortId, 'TASK_CANCELLED');
     await showToast(translate('Order successfully moved to parking.'));
     await fetchSwapTasks();
   } catch {
