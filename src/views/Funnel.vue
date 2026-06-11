@@ -37,7 +37,7 @@
           </div>
 
           <div class="metrics">
-            <ion-item button detail="true" lines="none" class="metric" router-link="/open">
+            <ion-item button :detail="true" lines="none" class="metric" router-link="/open">
               <div style="width: 100%;">
                 <div class="metric-label">
                   <p>Brokering status</p>
@@ -89,7 +89,7 @@
         <StatCard title="Order Hold Tasks" :stat="32">
           <ion-list lines="none" class="hold-tasks-list">
             <!-- Substitute workefforts -->
-            <ion-item button detail="true" router-link="/unfillable">
+            <ion-item button :detail="true" router-link="/unfillable">
               <ion-label>
                 Substitute
                 <!-- number of workefforts where purpose type is substitute -->
@@ -98,7 +98,7 @@
             </ion-item>
 
             <!-- Bad Address workefforts -->
-            <ion-item button detail="true" router-link="/bad-address">
+            <ion-item button :detail="true" router-link="/bad-address">
               <ion-label>
                 Bad Address
                 <!-- number of workefforts where purpose type is bad address -->
@@ -107,7 +107,7 @@
             </ion-item>
 
             <!-- Fraud Risk workefforts -->
-            <ion-item button detail="true" router-link="/fraud">
+            <ion-item button :detail="true" router-link="/fraud">
               <ion-label>
                 Fraud Risk
                 <!-- number of workefforts where purpose type is fraud -->
@@ -183,18 +183,18 @@
               <ion-icon slot="end" :icon="informationCircleOutline" />
             </ion-item>
             <ion-list lines="none">
-              <h1>94%</h1>
+              <h1>{{ Math.round((store.facilityFulfillmentProgress?.fillRate || 0) * 100) }}%</h1>
               <ion-item>
                 <ion-label>Order allocated</ion-label>
-                <ion-label slot="end">150/Unlimited</ion-label>
+                <ion-label slot="end">{{ store.facilityFulfillmentProgress?.ordersAllocated ?? 0 }}/{{ store.facilityFulfillmentProgress?.capacityLimit ?? 'Unlimited' }}</ion-label>
               </ion-item>
               <ion-item>
                 <ion-label>Orders packed</ion-label>
-                <ion-label slot="end" color="success">141</ion-label>
+                <ion-label slot="end" color="success">{{ store.facilityFulfillmentProgress?.ordersPacked ?? 0 }}</ion-label>
               </ion-item>
               <ion-item>
                 <ion-label>Orders rejected</ion-label>
-                <ion-label slot="end" color="danger">9</ion-label>
+                <ion-label slot="end" color="danger">{{ store.facilityFulfillmentProgress?.ordersRejected ?? 0 }}</ion-label>
               </ion-item>
             </ion-list>
           </ion-card>
@@ -203,44 +203,36 @@
           <ion-card class="orders">
             <p class="overline title">Orders Pending Fulfillment</p>
             <div class="pending">
-              <h1>24</h1>
+              <h1>{{ store.facilityFulfillmentProgress?.totalPending ?? 0 }}</h1>
               <ion-item lines="none">
                 <ion-label>
                   <p>Oldest order assigned</p>
-                  3 hours ago
+                  {{ oldestAssignedRelativeStr }}
                 </ion-label>
               </ion-item>
             </div>
             <div class="fulfill">
               <ion-item lines="full" :button="true" :detail="true" :router-link="workflowRoute('/open')">
                 <ion-icon :icon="mailUnreadOutline" slot="start" />
-                <ion-label>14 open</ion-label>
+                <ion-label>{{ store.facilityFulfillmentProgress?.openCount ?? 0 }} open</ion-label>
               </ion-item>
               <ion-item lines="none" :button="true" :detail="true" :router-link="workflowRoute('/inflight')">
                 <ion-icon :icon="mailOpenOutline" slot="start" />
-                <ion-label>10 in progress</ion-label>
+                <ion-label>{{ store.facilityFulfillmentProgress?.inProgressCount ?? 0 }} in progress</ion-label>
               </ion-item>
             </div>
           </ion-card>
 
-          <ion-progress-bar class="fulfillment-progress-bar" :value="0.7" color="success" />
-
-          <!-- Scheduling -->
-          <div class="scheduling">
-            <ion-item lines="none">
-              <ion-icon slot="start" :icon="sendOutline" color="warning" />
-              <ion-label>
-                Carrier pickup scheduled
-                <p>04:30pm</p>
-              </ion-label>
-            </ion-item>
-            <ion-item lines="none">
-              <ion-icon slot="start" :icon="storefrontOutline" color="danger" />
-              <ion-label>
-                Store closes in 2 hours
-                <p>07:00pm</p>
-              </ion-label>
-            </ion-item>
+          <div class="fulfillment-progress-bar custom-progress-track">
+            <div class="progress-segment packed" :style="{ width: progressPercent.packed + '%' }"></div>
+            <div class="progress-segment rejected" :style="{ width: progressPercent.rejected + '%' }"></div>
+            <div 
+              class="progress-segment allocated" 
+              :style="{ 
+                width: progressPercent.allocated + '%',
+                borderRight: progressPercent.allocated > 0 ? '1.5px solid var(--ion-color-primary, #3880ff)' : 'none'
+              }"
+            ></div>
           </div>
         </div>
       </div>
@@ -250,7 +242,6 @@
 
 <script setup lang="ts">
 import {
-  IonBadge,
   IonCard,
   IonCardContent,
   IonContent,
@@ -275,18 +266,11 @@ import {
 } from '@ionic/vue';
 import { ref } from 'vue';
 import {
-  airplaneOutline,
-  alertCircleOutline,
-  cubeOutline,
-  playCircleOutline,
-  shieldHalfOutline,
   globeOutline,
   businessOutline,
   informationCircleOutline,
   mailUnreadOutline,
-  mailOpenOutline,
-  sendOutline,
-  storefrontOutline
+  mailOpenOutline
 } from 'ionicons/icons';
 import { computed, onMounted, watch } from 'vue';
 import { translate, RadioFacetGroup, StatCard, Sparkline } from '@common';
@@ -294,6 +278,11 @@ import { useCustomerServiceStore } from '@/store/customerService';
 import { DateTime } from 'luxon';
 
 const store = useCustomerServiceStore();
+
+const selectedStoreId = ref('');
+const selectedFacilityId = ref('WH_RNO');
+const searchQuery = ref('');
+const selectedDimension = ref('volume');
 
 const oldestOpenOrderDateStr = computed(() => {
   const timestamp = store.openOrders.oldestOpenOrderDate;
@@ -315,8 +304,6 @@ const storeOptions = computed(() => {
   }));
 });
 
-const selectedStoreId = ref('');
-
 watch(storeOptions, (newOptions) => {
   if (newOptions.length > 0 && !selectedStoreId.value) {
     selectedStoreId.value = newOptions[0].value;
@@ -331,8 +318,17 @@ watch(selectedStoreId, (newStoreId) => {
     store.fetchFacilityOrderVolume(newStoreId);
     store.fetchFacilityFulfillmentVelocity(newStoreId);
     store.fetchFacilityPartialFulfillments(newStoreId);
+    if (selectedFacilityId.value) {
+      store.fetchFacilityFulfillmentProgress(selectedFacilityId.value, newStoreId);
+    }
   }
 }, { immediate: true });
+
+watch(selectedFacilityId, (newFacilityId) => {
+  if (newFacilityId && selectedStoreId.value) {
+    store.fetchFacilityFulfillmentProgress(newFacilityId, selectedStoreId.value);
+  }
+});
 
 const fulfillmentStats = computed(() => {
   const fp = store.fulfillmentProgress || {};
@@ -352,9 +348,6 @@ const fulfillmentStats = computed(() => {
 const selectedStoreName = computed(
   () => storeOptions.value.find((s) => s.value === selectedStoreId.value)?.primary ?? ''
 );
-const selectedFacilityId = ref('WH_RNO');
-const searchQuery = ref('');
-const selectedDimension = ref('volume');
 
 function getFacilityName(facilityId: string) {
   const fac = store.facilities.find(f => f.id === facilityId);
@@ -425,15 +418,62 @@ function workflowRoute(path: string) {
   };
 }
 
-const totalBlocked = computed(() => {
-  return counts.value['unfillable'] + counts.value['fraud'];
+
+const oldestAssignedRelativeStr = computed(() => {
+  const timestamp = store.facilityFulfillmentProgress?.oldestAssignedTime;
+  return timestamp ? DateTime.fromMillis(timestamp).toRelative() : 'No pending orders';
 });
 
-const totalInProgress = computed(() => {
-  return counts.value['open'] + counts.value['inflight'] + counts.value['packed'];
+const progressPercent = computed(() => {
+  const progress = store.facilityFulfillmentProgress;
+  if (!progress) return { packed: 0, rejected: 0, allocated: 0 };
+  const total = progress.capacityLimit || (progress.assignedBeforeTodayCount + progress.ordersAllocated) || 1;
+  const remainingAllocated = Math.max(0, progress.ordersAllocated - progress.ordersPacked - progress.ordersRejected);
+  return {
+    packed: (progress.ordersPacked / total) * 100,
+    rejected: (progress.ordersRejected / total) * 100,
+    allocated: (remainingAllocated / total) * 100
+  };
 });
 
-const totalOrders = computed(() => totalBlocked.value + totalInProgress.value);
+const carrierPickupTimeStr = computed(() => {
+  const time = store.facilityFulfillmentProgress?.carrierPickupTime;
+  if (!time) return '04:30pm';
+  return DateTime.fromFormat(time, 'HH:mm:ss').toFormat('hh:mma').toLowerCase();
+});
+
+const storeClosingTimeStr = computed(() => {
+  const time = store.facilityFulfillmentProgress?.closeTime;
+  if (!time) return '07:00pm';
+  return DateTime.fromFormat(time, 'HH:mm:ss').toFormat('hh:mma').toLowerCase();
+});
+
+const storeCloseRemainingStr = computed(() => {
+  const progress = store.facilityFulfillmentProgress;
+  if (!progress || !progress.closeTime || !progress.facilityTimeZone) {
+    return 'Store closes in 2 hours';
+  }
+  const facilityZone = progress.facilityTimeZone;
+  const nowInFacility = DateTime.now().setZone(facilityZone);
+  const closeTimeParts = progress.closeTime.split(':');
+  const closeTimeToday = nowInFacility.set({
+    hour: parseInt(closeTimeParts[0]),
+    minute: parseInt(closeTimeParts[1]),
+    second: parseInt(closeTimeParts[2] || '0'),
+    millisecond: 0
+  });
+  if (nowInFacility >= closeTimeToday) {
+    return 'Store is closed';
+  }
+  const diff = closeTimeToday.diff(nowInFacility, ['hours', 'minutes']);
+  const hours = Math.floor(diff.hours);
+  const minutes = Math.floor(diff.minutes);
+  if (hours > 0) {
+    return `Store closes in ${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  } else {
+    return `Store closes in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+  }
+});
 </script>
 
 <style scoped>
@@ -678,6 +718,29 @@ const totalOrders = computed(() => totalBlocked.value + totalInProgress.value);
   min-width: 0;
   height: var(--spacer-lg);
   border-radius: var(--spacer-xs);
+}
+
+.custom-progress-track {
+  display: flex;
+  background-color: var(--ion-color-step-50, #ffffff);
+  border: 1px solid var(--ion-color-step-300, #b3b3b3);
+  overflow: hidden;
+}
+
+.progress-segment {
+  height: 100%;
+}
+
+.progress-segment.packed {
+  background-color: var(--ion-color-success, #2dd36f);
+}
+
+.progress-segment.rejected {
+  background-color: var(--ion-color-danger, #eb445a);
+}
+
+.progress-segment.allocated {
+  background-color: #d2e0fb;
 }
 
 .scheduling {

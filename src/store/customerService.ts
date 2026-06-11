@@ -7,7 +7,8 @@ import type {
   WorkflowBucket,
   WorkflowFilters,
   WorkflowOrder,
-  FulfillmentProgress
+  FulfillmentProgress,
+  FacilityFulfillmentProgress
 } from '@/types/customerService';
 
 const FACILITIES = [
@@ -172,6 +173,7 @@ export const useCustomerServiceStore = defineStore('customerService', {
     facilityOrderVolume: [] as any[],
     facilityFulfillmentVelocity: [] as any[],
     facilityPartialFulfillments: [] as any[],
+    facilityFulfillmentProgress: null as FacilityFulfillmentProgress | null,
     orders: generateOrders() as WorkflowOrder[],
     filters: {
       unfillable: emptyFilters(),
@@ -243,7 +245,7 @@ export const useCustomerServiceStore = defineStore('customerService', {
           method: 'GET',
           params: {
             productStoreId: productStoreId,
-            dateFilter: "2025-10-01"
+            dateFilter: DateTime.now().toFormat('yyyy-MM-dd')
           }
         });
         if (resp.data) {
@@ -283,7 +285,7 @@ export const useCustomerServiceStore = defineStore('customerService', {
     },
     async fetchFacilityOrderVolume(productStoreId?: string) {
       try {
-        const params: any = { dateFilter: '2025-11-17' };
+        const params: any = { dateFilter: DateTime.now().toFormat('yyyy-MM-dd') };
         if (productStoreId) params.productStoreId = productStoreId;
         const resp = await api({
           url: 'oms/orders/funnelDashboard/facilityOrderVolume',
@@ -292,7 +294,6 @@ export const useCustomerServiceStore = defineStore('customerService', {
         });
         if (resp.data) {
           this.facilityOrderVolume = resp.data.facilities || [];
-          console.log('facilityOrderVolume:', this.facilityOrderVolume);
         }
       } catch (error) {
         console.error('Failed to fetch facility order volume', error);
@@ -300,7 +301,7 @@ export const useCustomerServiceStore = defineStore('customerService', {
     },
     async fetchFacilityFulfillmentVelocity(productStoreId?: string) {
       try {
-        const params: any = { dateFilter: '2025-01-01' };
+        const params: any = { dateFilter: DateTime.now().toFormat('yyyy-MM-dd') };
         if (productStoreId) params.productStoreId = productStoreId;
         const resp = await api({
           url: 'oms/orders/funnelDashboard/facilityFulfillmentVelocity',
@@ -309,7 +310,6 @@ export const useCustomerServiceStore = defineStore('customerService', {
         });
         if (resp.data) {
           this.facilityFulfillmentVelocity = resp.data.facilities || [];
-          console.log('facilityFulfillmentVelocity:', this.facilityFulfillmentVelocity);
         }
       } catch (error) {
         console.error('Failed to fetch facility fulfillment velocity', error);
@@ -317,7 +317,7 @@ export const useCustomerServiceStore = defineStore('customerService', {
     },
     async fetchFacilityPartialFulfillments(productStoreId?: string) {
       try {
-        const params: any = { dateFilter: '2025-01-01' };
+        const params: any = { dateFilter: DateTime.now().toFormat('yyyy-MM-dd') };
         if (productStoreId) params.productStoreId = productStoreId;
         const resp = await api({
           url: 'oms/orders/funnelDashboard/facilityPartialFulfillments',
@@ -326,10 +326,137 @@ export const useCustomerServiceStore = defineStore('customerService', {
         });
         if (resp.data) {
           this.facilityPartialFulfillments = resp.data.facilities || [];
-          console.log('facilityPartialFulfillments:', this.facilityPartialFulfillments);
         }
       } catch (error) {
         console.error('Failed to fetch facility partial fulfillments', error);
+      }
+    },
+    async fetchFacilityFulfillmentProgress(facilityId: string, productStoreId?: string) {
+      try {
+        const dateFilter = DateTime.now().toFormat('yyyy-MM-dd'); // Default / demo date filter
+        const startOfDayStr = DateTime.fromISO(dateFilter).startOf('day').toFormat('yyyy-MM-dd HH:mm:ss');
+        const endOfDayStr = DateTime.fromISO(dateFilter).plus({ days: 1 }).startOf('day').toFormat('yyyy-MM-dd HH:mm:ss');
+
+        // 1. Fetch Facility Details
+        const facilityPromise = api({
+          url: `oms/facilities/${facilityId}`,
+          method: 'GET'
+        }).catch(err => {
+          console.error('Failed to fetch facility details', err);
+          return { data: {} };
+        });
+
+        // 2. Fetch Allocations today
+        const allocationsPromise = api({
+          url: `oms/facilities/facilityOrderCounts`,
+          method: 'GET',
+          params: {
+            facilityId: facilityId, 
+            entryDate: dateFilter
+          }
+        }).catch(err => {
+          console.error('Failed to fetch allocations', err);
+          return { data: {} };
+        });
+
+        // 3. Fetch Rejections today
+        const rejectionsPromise = api({
+          url: 'oms/dataDocumentView',
+          method: 'POST',
+          data: {
+            dataDocumentId: 'ORDER_FACILITY_CHANGE',
+            customParametersMap: {
+              fromFacilityId: facilityId,
+              facilityId: 'REJECTED_ITM_PARKING',
+              productStoreId,
+              pageNoLimit: true,
+              changeDatetime_from: startOfDayStr,
+              changeDatetime_thru: endOfDayStr
+            },
+            fieldsToSelect: 'orderId,shipGroupSeqId',
+            distinct: true
+          }
+        }).catch(err => {
+          console.error('Failed to fetch rejections', err);
+          return { data: {} };
+        });
+
+        // 5. Fetch Pending Orders and progress stats
+        const progressStatsPromise = api({
+          url: 'oms/orders/funnelDashboard/fulfillmentProgress',
+          method: 'GET',
+          params: {
+            facilityId,
+            productStoreId,
+            dateFilter
+          }
+        }).catch(err => {
+          console.error('Failed to fetch facility fulfillment progress stats', err);
+          return { data: {} };
+        });
+
+        const [facilityResp, allocationsResp, rejectionsResp, progressStatsResp] = await Promise.all([
+          facilityPromise,
+          allocationsPromise,
+          rejectionsPromise,
+          progressStatsPromise
+        ]);
+
+        const facilityData = facilityResp.data || {};
+        const capacityLimit = facilityData.maximumOrderLimit ? Number(facilityData.maximumOrderLimit) : null;
+        const openTime = facilityData.openTime ? String(facilityData.openTime) : null;
+        const closeTime = facilityData.closeTime ? String(facilityData.closeTime) : null;
+        const facilityTimeZone = facilityData.facilityTimeZone || 'UTC';
+        const carrierPickupTime = '16:30:00';
+
+        const allocationsList = allocationsResp.data || [];
+        const ordersAllocated = allocationsList.length > 0 ? Number(allocationsList[0].lastOrderCount || 0) : 0;
+
+        const rejectionsList = rejectionsResp.data?.entityValueList || [];
+        const uniqueRejected = new Set(rejectionsList.map((item: any) => `${item.orderId}-${item.shipGroupSeqId}`));
+        const ordersRejected = uniqueRejected.size;
+
+        const progressData = progressStatsResp.data || {};
+        const ordersPacked = Number(progressData.packedShipGroupsCount || 0) + Number(progressData.shippedShipGroupsCount || 0);
+
+        const totalProcessed = ordersPacked + ordersRejected;
+        const fillRate = totalProcessed > 0 ? (ordersPacked / totalProcessed) : 0;
+
+        const openCount = Number(progressData.brokeredShipGroupsCount || 0);
+        const inProgressCount = Number(progressData.pickedShipGroupsCount || 0);
+        const totalPending = openCount + inProgressCount;
+        
+        let oldestAssignedTime: number | null = null;
+        if (progressData.oldestShipGroupAssignedDatetime) {
+          const parsed = DateTime.fromISO(String(progressData.oldestShipGroupAssignedDatetime));
+          if (parsed.isValid) {
+            oldestAssignedTime = parsed.toMillis();
+          } else {
+            const rawMillis = Date.parse(progressData.oldestShipGroupAssignedDatetime);
+            if (!isNaN(rawMillis)) oldestAssignedTime = rawMillis;
+          }
+        }
+        const assignedBeforeTodayCount = 0;
+
+        this.facilityFulfillmentProgress = {
+          ordersAllocated,
+          ordersPacked,
+          ordersRejected,
+          capacityLimit,
+          fillRate,
+          openCount,
+          inProgressCount,
+          totalPending,
+          oldestAssignedTime,
+          assignedBeforeTodayCount,
+          openTime,
+          closeTime,
+          facilityTimeZone,
+          carrierPickupTime
+        };
+
+      } catch (error) {
+        console.error('Failed to fetch facility fulfillment progress', error);
       }
     },
     clearFilters(bucket: WorkflowBucket) {
