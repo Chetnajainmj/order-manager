@@ -10,7 +10,7 @@
 
       <div class="search-filter-grid">
         <slot />
-        <ion-button fill="clear" @click="$emit('clear')">{{ translate('Clear') }}</ion-button>
+        <ion-button v-if="showClear" fill="clear" @click="$emit('clear')">{{ translate('Clear') }}</ion-button>
       </div>
     </ion-card-content>
   </ion-card>
@@ -20,10 +20,13 @@
 import { IonButton, IonCard, IonCardContent, IonSearchbar } from '@ionic/vue';
 import { translate } from '@common';
 
-defineProps<{
+withDefaults(defineProps<{
   modelValue: string;
   placeholder: string;
-}>();
+  showClear?: boolean;
+}>(), {
+  showClear: true,
+});
 
 const emit = defineEmits<{
   (event: 'update:modelValue', value: string): void;
@@ -40,7 +43,7 @@ function updateSearch(event: CustomEvent) {
 .search-filter-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
+  gap: var(--spacer-base);
   align-items: end;
 }
 

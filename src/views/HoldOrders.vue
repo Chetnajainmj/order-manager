@@ -12,13 +12,17 @@
     <ion-content>
       <SearchFilterCard
         v-model="searchQuery"
-        :placeholder="translate('Search unfillable orders...')"
+        :placeholder="translate('Search')"
+        :show-clear="false"
         @search="fetchHoldTasks()"
         @clear="clearFilters"
       >
-        
-        <ion-input v-model="dateAfter" :label="translate('Date after')" label-placement="stacked" type="date" />
-        <ion-input v-model="dateBefore" :label="translate('Date before')" label-placement="stacked" type="date" />
+        <ion-select v-model="assignee" :label="translate('Assignee')" label-placement="stacked" interface="popover">
+          <ion-select-option value="">{{ translate('All assignees') }}</ion-select-option>
+          <ion-select-option value="me">{{ translate('Me') }}</ion-select-option>
+        </ion-select>
+        <ion-input v-model="dateAfter" :label="translate('Order date after')" label-placement="stacked" type="date" />
+        <ion-input v-model="dateBefore" :label="translate('Order date before')" label-placement="stacked" type="date" />
         <ion-select v-model="orderChannel" :label="translate('Channel')" label-placement="stacked" interface="popover">
           <ion-select-option value="">{{ translate('All channels') }}</ion-select-option>
           <ion-select-option v-for="channel in salesChannels" :key="channel.enumId" :value="channel.enumId">
@@ -33,16 +37,17 @@
       </ion-item>
 
       <div class="hold-orders-list">
-        <template v-if="heldTasks.length">
-          <HoldTaskCard
-            v-for="task in heldTasks"
-            :key="task.workEffortId"
-            :task="task"
-            :selected="!!selectedOrders[task.workEffortId]"
-            @update:selected="selectedOrders[task.workEffortId] = $event"
-            @resolve="resolveTask"
-          />
-        </template>
+        <HoldTaskCard
+          v-if="heldTasks.length"
+          v-for="task in heldTasks"
+          :key="task.workEffortId"
+          :ref="(el) => setCardRef(task.workEffortId, el)"
+          :task="task"
+          :selectable="true"
+          :selected="!!selectedOrders[task.workEffortId]"
+          @update:selected="val => selectedOrders[task.workEffortId] = val"
+          @completed="fetchHoldTasks()"
+        />
         <div class="empty-state" v-if="!heldTasks.length">
           <p v-html="getEmptyMessage()"></p>
         </div>
@@ -94,28 +99,41 @@ import {
   onIonViewWillEnter
 } from '@ionic/vue';
 import { translate } from '@common';
-import HoldTaskCard from '@/components/HoldTaskCard.vue';
 import SearchFilterCard from '@/components/common/SearchFilterCard.vue';
+import HoldTaskCard from '@/components/tasks/HoldTaskCard.vue';
+import { useUserStore } from '@/store/user';
 import { useOrderTaskStore } from '@/store/orderTask';
 import { useSeedStore } from '@/store/seed';
 
 const orderTaskStore = useOrderTaskStore();
+const userStore = useUserStore();
 const seedStore = useSeedStore();
 
 const salesChannels = computed(() => seedStore.getEnumsByType('ORDER_SALES_CHANNEL'));
+const currentUserPartyId = computed(() => userStore.getUserProfile?.partyId || userStore.getUserProfile?.userId || '');
 
 const searchQuery = ref('');
 const swappable = ref(false);
+const assignee = ref('');
 const dateAfter = ref('');
 const dateBefore = ref('');
 const orderChannel = ref('');
 const selectAll = ref(false);
 const selectedOrders = ref<Record<string, boolean>>({});
+const cardRefs = ref<Record<string, any>>({});
+
+function setCardRef(workEffortId: string, el: any) {
+  if (el) {
+    cardRefs.value[workEffortId] = el;
+  } else {
+    delete cardRefs.value[workEffortId];
+  }
+}
 
 const heldTasks = computed(() => orderTaskStore.getHoldTasks);
 const isScrollable = computed(() => orderTaskStore.isHoldTasksScrollable);
 const hasSelectedTasks = computed(() => Object.values(selectedOrders.value).some(Boolean));
-const hasFilters = computed(() => !!(searchQuery.value || dateAfter.value || dateBefore.value || orderChannel.value));
+const hasFilters = computed(() => !!(searchQuery.value || assignee.value || dateAfter.value || dateBefore.value || orderChannel.value));
 
 function getEmptyMessage() {
   return hasFilters.value
@@ -123,7 +141,7 @@ function getEmptyMessage() {
     : translate('No records found.');
 }
 
-watch([dateAfter, dateBefore, orderChannel], () => {
+watch([assignee, dateAfter, dateBefore, orderChannel], () => {
   fetchHoldTasks();
 });
 
@@ -136,29 +154,11 @@ watch(selectAll, (val) => {
 function clearFilters() {
   searchQuery.value = '';
   swappable.value = false;
+  assignee.value = '';
   dateAfter.value = '';
   dateBefore.value = '';
   orderChannel.value = '';
   fetchHoldTasks();
-}
-
-async function resolveTask(workEffortId: string) {
-  const alert = await alertController.create({
-    header: translate('Resolve task'),
-    message: translate('Are you sure you want to mark this task as resolved?'),
-    buttons: [
-      { text: translate('No'), role: 'cancel' },
-      {
-        text: translate('Yes'),
-        role: 'confirm',
-        handler: async () => {
-          await orderTaskStore.changeTaskStatus(workEffortId, 'TASK_COMPLETED');
-          await fetchHoldTasks();
-        }
-      }
-    ]
-  });
-  await alert.present();
 }
 
 async function resolveSelectedTasks() {
@@ -176,7 +176,12 @@ async function resolveSelectedTasks() {
         text: translate('Yes'),
         role: 'confirm',
         handler: async () => {
-          await Promise.all(selected.map(id => orderTaskStore.changeTaskStatus(id, 'TASK_COMPLETED')));
+          await Promise.all(
+            selected
+              .map(id => cardRefs.value[id])
+              .filter(Boolean)
+              .map(card => card.submitResolve())
+          );
           selectedOrders.value = {};
           selectAll.value = false;
           await fetchHoldTasks();
@@ -186,6 +191,7 @@ async function resolveSelectedTasks() {
   });
   await alert.present();
 }
+
 
 const fetchHoldTasks = async (vSize?: any, vIndex?: any) => {
   const viewSize = vSize ? vSize : import.meta.env.VITE_VIEW_SIZE;
@@ -197,6 +203,7 @@ const fetchHoldTasks = async (vSize?: any, vIndex?: any) => {
     ...(dateBefore.value && { createdDate_thru: new Date(dateBefore.value).getTime() }),
     ...(searchQuery.value && { orderName: searchQuery.value, orderName_op: 'like' }),
     ...(orderChannel.value && { salesChannelEnumId: orderChannel.value }),
+    ...(assignee.value === 'me' && currentUserPartyId.value && { currentUserPartyId: currentUserPartyId.value }),
   });
 };
 
@@ -214,7 +221,13 @@ onIonViewWillEnter(() => {
 </script>
 
 <style scoped>
-.border-top {
-  border-top: 1px solid var(--ion-color-light);
+.hold-orders-list {
+  padding: 0 var(--spacer-sm) var(--spacer-sm);
+}
+
+@media (max-width: 640px) {
+  .hold-orders-list {
+    padding-inline: 0;
+  }
 }
 </style>
