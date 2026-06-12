@@ -2,6 +2,8 @@
 
 This document maps the reviewed HC Ionic design system nodes to the current Ionic/Vue implementation and records the remaining gaps that should not be guessed in the frontend.
 
+> **Integration status (2026-06-12):** the codex PR stack was integrated selectively. PRs **#75, #84, #89, #107, #109, #120, #121, and #123 were NOT merged** (rejected or superseded in review). Rows below that cite those PRs describe behavior that is **not present** in the codebase — e.g. the parking modal still fetches facilities (no static four-bucket radios from #75), `BadAddressTaskCard.vue` keeps the explicit per-field form (no `addressRows(...)` from #84), `OrderItemListRow.vue` has no quantity-suppression/chip guards (#89/#109), task cards still fall back to an `Unknown` contact name (#107), `/unfillable` uses the `OrderQueueList` page from PR #57 (not the SwapOrders variant from #120), and the menu has no `Find` divider or queue counts (#121/#123).
+
 ## Implementation Rules
 
 - Use core Ionic components for the visible UI surface.
