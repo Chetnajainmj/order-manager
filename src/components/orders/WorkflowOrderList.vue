@@ -158,6 +158,7 @@ import {
 } from '@ionic/vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { DateTime } from 'luxon';
+import { useRoute } from 'vue-router';
 import { useCustomerServiceStore, BULK_ACTIONS } from '@/store/customerService';
 import { useOrderStore } from '@/store/order';
 import { useSeedStore } from '@/store/seed';
@@ -178,6 +179,7 @@ const props = defineProps<{
 const store = useCustomerServiceStore();
 const orderStore = useOrderStore();
 const seedStore = useSeedStore();
+const route = useRoute();
 const toastMessage = ref('');
 
 const filters = computed({
@@ -230,14 +232,14 @@ const hasMore = computed(() =>
 );
 
 function applyRouteFilters() {
-  const facilityId = new URLSearchParams(window.location.search).get('facilityId');
+  const facilityId = route.query.facilityId;
 
-  if (facilityId) {
+  if (typeof facilityId === 'string' && facilityId) {
     filters.value.facilityId = facilityId;
   }
 }
 
-applyRouteFilters();
+watch(() => route.query.facilityId, applyRouteFilters, { immediate: true });
 
 function loadWorkflowOrders() {
   orderStore.fetchWorkflowOrders(props.bucket as 'open' | 'inflight' | 'packed', filters.value);
