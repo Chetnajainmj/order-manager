@@ -26,22 +26,23 @@
       <div class="empty-state" v-if="!substituteProducts.length">
         <p>{{ translate('No substitute products configured for this item.') }}</p>
       </div>
-      <ion-item v-for="product in substituteProducts" :key="product.productId"
-        :button="hasSubstituteStock(product.productId)"
-        :disabled="!hasSubstituteStock(product.productId)"
-        @click="hasSubstituteStock(product.productId) && selectProduct(product)"
-      >
-        <ion-thumbnail slot="start">
-          <DxpShopifyImg :src="getProduct(product.productId)?.mainImageUrl || product.mainImageUrl" size="small" />
-        </ion-thumbnail>
-        <ion-label>
-          {{ getProduct(product.productId)?.productName || product.productName }}
-          <p>{{ translate('SKU') }}: {{ getProduct(product.productId)?.internalName || product.internalName }}</p>
-          <p>{{ money(product.price) }}</p>
-        </ion-label>
-        <ion-note slot="end">{{ getSubstituteStock(product.productId)?.computedAtp ?? 0 }}</ion-note>
-        <ion-icon v-if="selectedProductId === product.productId" slot="end" :icon="checkmarkCircle" color="primary" />
-      </ion-item>
+      <ion-radio-group v-else v-model="selectedProductId" @ionChange="selectSubstituteProduct($event.detail.value)">
+        <ion-list-header>
+          <ion-label>{{ translate('Approved Swaps') }}</ion-label>
+        </ion-list-header>
+        <ion-item v-for="product in substituteProducts" :key="product.productId" :disabled="!hasSubstituteStock(product.productId)">
+          <ion-radio slot="start" :value="product.productId" />
+          <ion-thumbnail slot="start">
+            <DxpShopifyImg :src="getProduct(product.productId)?.mainImageUrl || product.mainImageUrl" size="small" />
+          </ion-thumbnail>
+          <ion-label>
+            {{ getProduct(product.productId)?.productName || product.productName }}
+            <p>{{ translate('SKU') }}: {{ getProduct(product.productId)?.internalName || product.internalName }}</p>
+            <p>{{ money(product.price) }}</p>
+          </ion-label>
+          <ion-note slot="end">{{ getSubstituteStock(product.productId)?.computedAtp ?? 0 }}</ion-note>
+        </ion-item>
+      </ion-radio-group>
     </ion-list>
 
     <!-- Product Search Segment -->
@@ -104,8 +105,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { IonButton, IonButtons, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonList, IonNote, IonSearchbar, IonSegment, IonSegmentButton, IonSpinner, IonThumbnail, IonTitle, IonToolbar, modalController } from '@ionic/vue';
-import { checkmarkCircle, closeOutline, saveOutline } from 'ionicons/icons';
+import { IonButton, IonButtons, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonList, IonListHeader, IonNote, IonRadio, IonRadioGroup, IonSearchbar, IonSegment, IonSegmentButton, IonSpinner, IonThumbnail, IonTitle, IonToolbar, modalController } from '@ionic/vue';
+import { closeOutline, saveOutline } from 'ionicons/icons';
 import { api, DxpShopifyImg, translate } from '@common';
 import { useProductCacheStore } from '@/store/productCache';
 import { useProductMaster } from '@/composables/useProductMaster';
@@ -114,13 +115,16 @@ import { useStockStore } from '@/store/stock';
 const props = defineProps<{
   substituteProducts: any[];
   facilityId: string;
+  selectedProductId?: string;
 }>();
 
 const PAGE_SIZE = 20;
 
-const selectedSegment = ref('substitute');
-const selectedProductId = ref('');
-const selectedProductData = ref<any>(null);
+const selectedSegment = ref('search');
+const selectedProductId = ref(props.selectedProductId ?? '');
+const selectedProductData = ref<any>(
+  props.substituteProducts.find((product: any) => product.productId === props.selectedProductId) ?? null
+);
 
 // Search state
 const searchKeyword = ref('');
@@ -167,6 +171,11 @@ function toSubstituteShape(product: any) {
 function selectProduct(product: any) {
   selectedProductId.value = product.productId;
   selectedProductData.value = { ...product, _isCustomSwap: true };
+}
+
+function selectSubstituteProduct(productId: string) {
+  const product = props.substituteProducts.find((item: any) => item.productId === productId);
+  if (product) selectProduct(product);
 }
 
 async function searchProducts(pageIndex = 0, append = false) {

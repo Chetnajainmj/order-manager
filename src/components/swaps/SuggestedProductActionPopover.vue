@@ -68,6 +68,7 @@ const customSwap = async () => {
     componentProps: {
       substituteProducts: originalItem?.substituteProducts ?? [],
       facilityId: props.task.facilityId,
+      selectedProductId: props.item.productId,
     },
   });
   await modal.present();

@@ -35,6 +35,7 @@
           <ion-card-header>
             <ion-card-subtitle>{{ translate("OMS instance") }}</ion-card-subtitle>
             <ion-card-title>{{ omsInstance }}</ion-card-title>
+            <ion-badge v-if="isOmsOffline" color="danger">{{ translate("Offline") }}</ion-badge>
           </ion-card-header>
           <ion-card-content>
             {{ translate("This is the name of the OMS you are connected to right now. Make sure that you are connected to the right instance before proceeding.") }}
@@ -183,11 +184,11 @@
 </template>
 
 <script setup lang="ts">
-import { IonAvatar, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonListHeader, IonMenuButton, IonModal, IonPage, IonRadio, IonRadioGroup, IonSearchbar, IonSelect, IonSelectOption, IonSpinner, IonTitle, IonToolbar } from '@ionic/vue';
+import { IonAvatar, IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonListHeader, IonMenuButton, IonModal, IonPage, IonRadio, IonRadioGroup, IonSearchbar, IonSelect, IonSelectOption, IonSpinner, IonTitle, IonToolbar } from '@ionic/vue';
 import { closeOutline, openOutline, saveOutline } from 'ionicons/icons';
 import { DateTime } from 'luxon';
 import { computed, onBeforeMount, ref } from 'vue';
-import { commonUtil, cookieHelper, i18n, translate } from '@common';
+import { api, commonUtil, cookieHelper, i18n, translate } from '@common';
 import { useAuth } from '@common/composables/useAuth';
 import { useUserStore } from '@/store/user';
 import { useProductStore } from '@/store/productStore'
@@ -237,6 +238,7 @@ const props = defineProps({
 });
 
 const isLoading = ref(true);
+const isOmsOffline = ref(false);
 const timeZoneModal = ref();
 const queryString = ref('');
 const filteredTimeZones = ref<any[]>([]);
@@ -248,6 +250,7 @@ const browserTimeZone = ref({
 
 onBeforeMount(async () => {
   isLoading.value = true;
+  checkOmsConnection();
   await userStore.fetchAvailableTimeZones();
   timeZoneId.value = currentTimeZone.value;
 
@@ -258,6 +261,26 @@ onBeforeMount(async () => {
   findTimeZone();
   isLoading.value = false;
 });
+
+async function checkOmsConnection() {
+  if (!omsInstance.value) {
+    isOmsOffline.value = true;
+    return;
+  }
+
+  try {
+    await api({
+      url: commonUtil.isMoqui() ? "admin/user/permissions" : "getPermissions",
+      method: "GET",
+      baseURL: commonUtil.getOmsURL(),
+      params: { viewIndex: 0, viewSize: 1 },
+      timeout: 3000,
+    });
+    isOmsOffline.value = false;
+  } catch (error: any) {
+    isOmsOffline.value = !error?.response;
+  }
+}
 
 function setCurrentProductStore(event: CustomEvent) {
   if (currentProductStore.value.productStoreId !== event.detail.value) {

@@ -1,5 +1,5 @@
 <template>
-  <ion-card class="task-card-shell">
+  <ion-card class="task-card-shell ship-group-card">
     <ion-item lines="none" class="task-card-heading" :class="{ 'task-card-heading-has-chip': chipLabel }">
       <ion-checkbox
         v-if="selectable"
@@ -36,8 +36,8 @@
       :color="progressColor || undefined"
     />
 
-    <ion-list v-if="hasContactDetails" lines="full" class="task-card-contact-details">
-      <ion-item>
+    <div v-if="hasContactDetails" class="task-card-contact-details ship-group-timeline">
+      <ion-item lines="none">
         <ion-icon slot="start" :icon="personOutline" />
         <ion-label>
           {{ contactName || translate('Unknown') }}
@@ -46,7 +46,7 @@
           {{ translate('Copy') }}
         </ion-button>
       </ion-item>
-      <ion-item>
+      <ion-item lines="none">
         <ion-icon slot="start" :icon="callOutline" />
         <ion-label>
           {{ contactPhone || '-' }}
@@ -55,7 +55,7 @@
           {{ translate('Copy') }}
         </ion-button>
       </ion-item>
-      <ion-item>
+      <ion-item lines="none">
         <ion-icon slot="start" :icon="mailOutline" />
         <ion-label>
           {{ contactEmail || '-' }}
@@ -64,22 +64,22 @@
           {{ translate('Copy') }}
         </ion-button>
       </ion-item>
-    </ion-list>
+    </div>
 
-    <ion-card-content v-if="$slots['content-start'] || $slots.default" class="task-card-content">
+    <div v-if="$slots['content-start'] || $slots.default" class="task-card-content">
       <slot name="content-start" />
       <div
         v-if="$slots.default"
         :class="{
-          'task-card-content-grid': contentLayout === 'grid',
+          'task-card-content-grid ship-group-detail-columns': contentLayout === 'grid',
           'task-card-content-stack': contentLayout === 'stack',
         }"
       >
         <slot />
       </div>
-    </ion-card-content>
+    </div>
 
-    <div v-if="$slots.actions || $slots['actions-end']" class="task-card-actions">
+    <div v-if="$slots.actions || $slots['actions-end']" class="task-card-actions ship-group-actions">
       <ion-buttons class="task-card-action-buttons">
         <slot name="actions" />
       </ion-buttons>
@@ -92,7 +92,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { IonButton, IonButtons, IonCard, IonCardContent, IonCheckbox, IonChip, IonIcon, IonItem, IonLabel, IonList, IonNote, IonProgressBar } from '@ionic/vue';
+import { IonButton, IonButtons, IonCard, IonCheckbox, IonChip, IonIcon, IonItem, IonLabel, IonNote, IonProgressBar } from '@ionic/vue';
 import { callOutline, copyOutline, mailOutline, personOutline, ticketOutline } from 'ionicons/icons';
 import { commonUtil, translate } from '@common';
 
@@ -159,11 +159,6 @@ async function copyChipLabel() {
 </script>
 
 <style scoped>
-.task-card-shell {
-  border-radius: 8px;
-  overflow: hidden;
-}
-
 .task-card-heading {
   position: relative;
 }
@@ -180,40 +175,9 @@ async function copyChipLabel() {
   transform: translateX(-50%);
 }
 
-.task-card-contact-details {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  border-block-start: var(--border-medium);
-}
-
-.task-card-contact-details>ion-item:not(:first-child),
-.task-card-content-grid>*:not(:first-child) {
-  border-inline-start: var(--border-medium);
-}
-
-.task-card-content {
-  padding: 0;
-}
-
-.task-card-content-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  align-items: start;
-}
-
 .task-card-content-stack {
   display: flex;
   flex-direction: column;
-}
-
-.task-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacer-xs);
-  align-items: center;
-  justify-content: space-between;
-  border-block-start: var(--border-medium);
-  padding: var(--spacer-xs);
 }
 
 .task-card-action-buttons {
@@ -233,15 +197,6 @@ async function copyChipLabel() {
 
   .task-card-heading-has-chip .task-card-heading-title {
     max-width: none;
-  }
-
-  .task-card-contact-details>ion-item:not(:first-child),
-  .task-card-content-grid>*:not(:first-child) {
-    border-inline-start: 0;
-  }
-
-  .task-card-actions {
-    align-items: stretch;
   }
 
   .task-card-actions-end {

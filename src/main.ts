@@ -26,6 +26,7 @@ import '@ionic/vue/css/palettes/dark.system.css';
 
 /* Theme variables */
 import './theme/variables.css';
+import './theme/work-card.css';
 import "@common/css/settings.css"
 import "@common/css/theme.css"
 
@@ -62,10 +63,10 @@ initialiseConfig({
 app.use(router)
 
 router.isReady().then(async () => {
-  if (import.meta.env.DEV) {
-    await import('./dev/autoLogin').then(({ tryDevAutoLogin }) => tryDevAutoLogin());
-  }
-
   app.directive('image-preview', imagePreview)
   app.mount('#app');
+
+  if (import.meta.env.DEV) {
+    import('./dev/autoLogin').then(({ tryDevAutoLogin }) => tryDevAutoLogin());
+  }
 });

@@ -388,8 +388,6 @@ async function findProduct(value: string) {
     return null;
   }
 
-  console.log('dfdf', useProductStore().getCurrentProductStore)
-
   try {
     const payload: any = {
       filters: {

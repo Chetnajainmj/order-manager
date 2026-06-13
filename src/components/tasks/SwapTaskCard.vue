@@ -95,12 +95,12 @@
           </ion-button>
         </template>
         <template v-else-if="suggested._isSubstitute">
-          <ion-badge slot="end" color="success">{{ translate('Available') }}</ion-badge>
+          <ion-badge slot="end" color="success">{{ availableBadgeLabel(suggested, task) }}</ion-badge>
           <ion-button slot="end" fill="clear" color="danger" @click="removeSuggestedSubstitute(task, suggested)">
             <ion-icon slot="icon-only" :icon="closeCircleOutline" />
           </ion-button>
         </template>
-        <ion-badge v-else-if="!suggested._noReplacement" slot="end" color="success">{{ translate('Available') }}</ion-badge>
+        <ion-badge v-else-if="!suggested._noReplacement" slot="end" color="success">{{ availableBadgeLabel(suggested, task) }}</ion-badge>
         <ion-badge v-else slot="end" color="danger">{{ translate('Cancel') }}</ion-badge>
 
         <ion-button slot="end" fill="clear" color="medium" @click="openSuggestedProductActionsPopover($event, suggested, task)">
@@ -129,7 +129,7 @@
 
     <template #actions>
       <ion-button fill="clear" color="primary" @click="releaseUpdatedOrder(task)">{{ translate('Release updated order') }}</ion-button>
-      <ion-button fill="clear" color="primary" @click="cancelOrder(task)">{{ translate('Cancel order') }}</ion-button>
+      <ion-button fill="clear" color="danger" @click="cancelOrder(task)">{{ translate('Cancel order') }}</ion-button>
       <ion-button fill="clear" color="primary" @click="parkOrder(task)">{{ translate('Park') }}</ion-button>
     </template>
   </TaskCardShell>
@@ -323,6 +323,16 @@ function getSubstitute(item: any) {
 function hasSubstituteStock(productId: string, facilityId: string): boolean {
   const stock = useStockStore().getProductStock(productId, facilityId);
   return (stock?.computedAtp ?? 0) > 0;
+}
+
+function availableBadgeLabel(item: any, task: any): string {
+  const stock = useStockStore().getProductStock(item.productId, task.facilityId);
+  const quantity = stock?.computedAtp
+    ?? item.inventoryConfig?.computedLastInventoryCount
+    ?? item.computedAtp
+    ?? 0;
+
+  return `${translate('Available')}: ${Number(quantity)}`;
 }
 
 function getSuggestedItems(task: any): { list: any[]; newTotal: number; suggestedRefund: number } {
