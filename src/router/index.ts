@@ -75,6 +75,36 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/open/:orderId',
+    name: 'OpenOrderDetail',
+    component: OrderDetail,
+    props: true,
+    beforeEnter: authGuard,
+    meta: {
+      permissionId: ORDER_VIEW_PERMISSION
+    }
+  },
+  {
+    path: '/packed/:orderId',
+    name: 'PackedOrderDetail',
+    component: OrderDetail,
+    props: true,
+    beforeEnter: authGuard,
+    meta: {
+      permissionId: ORDER_VIEW_PERMISSION
+    }
+  },
+  {
+    path: '/inflight/:orderId',
+    name: 'InflightOrderDetail',
+    component: OrderDetail,
+    props: true,
+    beforeEnter: authGuard,
+    meta: {
+      permissionId: ORDER_VIEW_PERMISSION
+    }
+  },
+  {
     path: '/customers',
     name: 'CustomerFind',
     component: Customers,
