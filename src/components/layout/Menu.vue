@@ -75,19 +75,19 @@
           </ion-item>
         </ion-menu-toggle>
         <ion-menu-toggle :auto-hide="false">
-          <ion-item v-if="hasPermission(ORDER_VIEW_PERMISSION)" button router-link="/open" router-direction="root" :class="{ selected: selectedPage === '/open' }">
+          <ion-item v-if="hasPermission(ORDER_VIEW_PERMISSION)" button router-link="/open" router-direction="root" :class="{ selected: selectedPage.includes('/open') }">
             <ion-icon slot="start" :icon="playCircleOutline" />
             <ion-label>{{ translate("Open") }}</ion-label>
           </ion-item>
         </ion-menu-toggle>
         <ion-menu-toggle :auto-hide="false">
-          <ion-item v-if="hasPermission(ORDER_VIEW_PERMISSION)" button router-link="/inflight" router-direction="root" :class="{ selected: selectedPage === '/inflight' }">
+          <ion-item v-if="hasPermission(ORDER_VIEW_PERMISSION)" button router-link="/inflight" router-direction="root" :class="{ selected: selectedPage.includes('/inflight') }">
             <ion-icon slot="start" :icon="airplaneOutline" />
             <ion-label>{{ translate("Inflight") }}</ion-label>
           </ion-item>
         </ion-menu-toggle>
         <ion-menu-toggle :auto-hide="false">
-          <ion-item v-if="hasPermission(ORDER_VIEW_PERMISSION)" button router-link="/packed" router-direction="root" :class="{ selected: selectedPage === '/packed' }">
+          <ion-item v-if="hasPermission(ORDER_VIEW_PERMISSION)" button router-link="/packed" router-direction="root" :class="{ selected: selectedPage.includes('/packed') }">
             <ion-icon slot="start" :icon="cubeOutline" />
             <ion-label>{{ translate("Packed") }}</ion-label>
           </ion-item>

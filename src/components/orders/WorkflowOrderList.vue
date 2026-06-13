@@ -331,7 +331,7 @@ function setOrderSelection(orderId: string, checked: boolean) {
 }
 
 function orderDetailLink(order: WorkflowOrder) {
-  return `/orders/${order.orderId}`;
+  return `/${props.bucket}/${order.orderId}`;
 }
 
 async function runAction(action: BulkActionDefinition) {
