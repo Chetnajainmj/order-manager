@@ -9,6 +9,7 @@ import {
   expirePartyContactMech,
   expirePartyRelationship,
   findShopifyDuplicateParties,
+  indexCustomer,
   updatePartyEmail,
   updatePartyPostalAddress,
   updatePartyTelecomNumber,
@@ -142,6 +143,10 @@ function allRelationships(profile: CustomerProfile | null, loadedRelationships: 
     seen.add(key);
     return true;
   });
+}
+
+function triggerCustomerIndex(partyId: string): void {
+  indexCustomer(partyId).catch((e) => console.error(`[customer index] failed for ${partyId}:`, e));
 }
 
 export const useCustomerStore = defineStore('customerDetail', {
@@ -531,6 +536,7 @@ export const useCustomerStore = defineStore('customerDetail', {
         await createPartyPostalAddress(partyId, data as any);
       }
       await this.loadCustomerProfile(partyId, true);
+      triggerCustomerIndex(partyId);
     },
 
     async updateContact(partyId: string, contactMechTypeId: string, contactMechId: string, data: Record<string, string>) {
@@ -542,11 +548,13 @@ export const useCustomerStore = defineStore('customerDetail', {
         await updatePartyPostalAddress(partyId, contactMechId, data as any);
       }
       await this.loadCustomerProfile(partyId, true);
+      triggerCustomerIndex(partyId);
     },
 
     async expireContact(partyId: string, contactMechId: string) {
       await expirePartyContactMech(partyId, contactMechId);
       await this.loadCustomerProfile(partyId, true);
+      triggerCustomerIndex(partyId);
     },
 
     async createRelationship(input: { partyIdFrom: string; partyIdTo: string; partyRelationshipTypeId: string; roleTypeIdFrom: string; roleTypeIdTo: string; fromDate: number; comments?: string }) {
@@ -560,6 +568,7 @@ export const useCustomerStore = defineStore('customerDetail', {
         this.loadCustomerProfile(partyId, true),
         this.loadCustomerRelationships(partyId, true)
       ]);
+      triggerCustomerIndex(partyId);
     },
 
     async expireRelationship(key: { partyIdFrom: string; partyIdTo: string; roleTypeIdFrom: string; roleTypeIdTo: string; fromDate: string }, thruDate: number) {
@@ -568,6 +577,7 @@ export const useCustomerStore = defineStore('customerDetail', {
         this.loadCustomerProfile(this.currentPartyId, true),
         this.loadCustomerRelationships(this.currentPartyId, true)
       ]);
+      triggerCustomerIndex(this.currentPartyId);
     },
 
     async loadMergableDuplicates(partyId: string) {
