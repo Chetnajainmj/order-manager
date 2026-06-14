@@ -18,7 +18,7 @@
     </template>
 
     <ion-radio-group v-if="editableAddresses" v-model="selectedAddressType" class="address-task-addresses">
-      <ion-list lines="full">
+      <ion-list class="ion-no-padding" lines="full">
         <ion-list-header>
           <ion-label>{{ translate('Original address') }}</ion-label>
           <ion-radio class="ion-margin-end" value="original" label-placement="start">{{ translate('keep original') }}</ion-radio>
@@ -47,7 +47,7 @@
         </ion-item>
       </ion-list>
 
-      <ion-list lines="full">
+      <ion-list class="ion-no-padding" lines="full">
         <ion-list-header>
           <ion-label>{{ translate('Suggested address') }}</ion-label>
           <ion-radio class="ion-margin-end" value="suggested" label-placement="start">{{ translate('use suggested') }}</ion-radio>
