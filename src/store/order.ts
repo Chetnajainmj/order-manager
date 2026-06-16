@@ -4,11 +4,12 @@ import {
   searchOrders as searchOrderService,
   type OrderSearchParams
 } from '@/services/order';
-import { allDocs, toStringValue, toNumberValue } from '@/services/OrderService';
+import { toStringValue, toNumberValue } from '@/services/OrderService';
 import type { Customer, Order, ReturnRecord, Shipment } from '@/types/order';
 import type { WorkflowOrder, WorkflowFilters } from '@/types/customerService';
 import { useSeedStore } from '@/store/seed';
 import logger from '@/logger';
+import { useProductStore } from './productStore';
 
 
 async function fetchWorkflowPage(
@@ -22,10 +23,13 @@ async function fetchWorkflowPage(
   if (filters.salesChannelEnumId && filters.salesChannelEnumId !== 'All') params.salesChannelEnumId = filters.salesChannelEnumId;
   if (filters.facilityId && filters.facilityId !== 'All') params.facilityId = filters.facilityId;
   if (filters.shipmentMethodTypeId && filters.shipmentMethodTypeId !== 'All') params.shipmentMethodTypeId = filters.shipmentMethodTypeId;
-  if (filters.productStoreId && filters.productStoreId !== 'All') params.productStoreId = filters.productStoreId;
   if (filters.priority !== null) params.priority = filters.priority;
   if (filters.dateFrom) params.orderDateFrom = `${filters.dateFrom} 00:00:00`;
   if (filters.dateThru) params.orderDateThru = `${filters.dateThru} 23:59:59`;
+
+  if(useProductStore().currentProductStore.productStoreId) {
+    params.productStoreId = useProductStore().currentProductStore.productStoreId
+  }
 
   const resp = await api({ url: 'oms/orders/salesOrders', method: 'get', params });
   const docs: any[] = resp.data?.orders || [];

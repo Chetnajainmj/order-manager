@@ -85,6 +85,7 @@
       <ion-list>
         <ion-list-header>
           <ion-checkbox
+            class="ion-margin-end"
             v-if="selectMode"
             :checked="allCurrentPageSelected"
             :indeterminate="someCurrentPageSelected && !allCurrentPageSelected"
