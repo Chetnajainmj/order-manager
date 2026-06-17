@@ -23,7 +23,8 @@ async function fetchWorkflowPage(
   if (filters.salesChannelEnumId && filters.salesChannelEnumId !== 'All') params.salesChannelEnumId = filters.salesChannelEnumId;
   if (filters.facilityId && filters.facilityId !== 'All') params.facilityId = filters.facilityId;
   if (filters.shipmentMethodTypeId && filters.shipmentMethodTypeId !== 'All') params.shipmentMethodTypeId = filters.shipmentMethodTypeId;
-  if (filters.productStoreId && filters.productStoreId !== 'All') params.productStoreId = filters.productStoreId;
+  const productStore = useProductStore();
+  if (productStore.currentProductStore?.productStoreId) params.productStoreId = productStore.currentProductStore.productStoreId;
   if (filters.priority !== null) params.isPriority = filters.priority;
   if (filters.dateFrom) params.orderDateFrom = `${filters.dateFrom} 00:00:00`;
   if (filters.dateThru) params.orderDateThru = `${filters.dateThru} 23:59:59`;
