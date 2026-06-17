@@ -17,21 +17,18 @@ async function fetchWorkflowPage(
   filters: WorkflowFilters,
   pageIndex: number
 ): Promise<{ orders: WorkflowOrder[]; total: number }> {
-  const params: Record<string, any> = { bucket, pageSize: import.meta.env.VITE_VIEW_SIZE, pageIndex };
+  const params: Record<string, any> = { pageSize: import.meta.env.VITE_VIEW_SIZE, pageIndex };
   if (filters.query) params.keyword = filters.query;
   if (filters.customerName) params.customerName = filters.customerName;
   if (filters.salesChannelEnumId && filters.salesChannelEnumId !== 'All') params.salesChannelEnumId = filters.salesChannelEnumId;
   if (filters.facilityId && filters.facilityId !== 'All') params.facilityId = filters.facilityId;
   if (filters.shipmentMethodTypeId && filters.shipmentMethodTypeId !== 'All') params.shipmentMethodTypeId = filters.shipmentMethodTypeId;
-  if (filters.priority !== null) params.priority = filters.priority;
+  if (filters.productStoreId && filters.productStoreId !== 'All') params.productStoreId = filters.productStoreId;
+  if (filters.priority !== null) params.isPriority = filters.priority;
   if (filters.dateFrom) params.orderDateFrom = `${filters.dateFrom} 00:00:00`;
   if (filters.dateThru) params.orderDateThru = `${filters.dateThru} 23:59:59`;
 
-  if(useProductStore().currentProductStore.productStoreId) {
-    params.productStoreId = useProductStore().currentProductStore.productStoreId
-  }
-
-  const resp = await api({ url: 'oms/orders/salesOrders', method: 'get', params });
+  const resp = await api({ url: `oms/orders/salesOrders/${bucket}`, method: 'get', params });
   const docs: any[] = resp.data?.orders || [];
   const total: number = resp.data?.ordersCount ?? docs.length;
 
