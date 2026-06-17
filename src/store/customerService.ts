@@ -13,14 +13,6 @@ import type {
 import { getPickProfileGroups, type FulfillmentSyncData, type SortRule } from '@/services/fulfillmentSync';
 import { useSeedStore } from '@/store/seed';
 
-const FACILITIES = [
-  { id: 'WH_RNO', name: 'Reno DC' },
-  { id: 'WH_ATL', name: 'Atlanta DC' },
-  { id: 'WH_LDN', name: 'London DC' },
-  { id: 'BROADWAY', name: 'Broadway Store' }
-];
-
-const CHANNELS = ['WEB_SALES_CHANNEL', 'POS_SALES_CHANNEL', 'MOBILE_SALES_CHANNEL', 'MARKETPLACE_CHANNEL'];
 
 function emptyFilters(): WorkflowFilters {
   return {
@@ -111,8 +103,6 @@ export const useCustomerServiceStore = defineStore('customerService', {
     fulfillmentSyncData: null as any
   }),
   getters: {
-    facilities: () => FACILITIES,
-    channels: () => CHANNELS,
     priorities: () => ['HIGH', 'NORMAL', 'LOW'],
     ordersInBucket: (state) => (bucket: WorkflowBucket) =>
       state.orders.filter((order) => inBucket(order, bucket)),
@@ -407,26 +397,11 @@ export const useCustomerServiceStore = defineStore('customerService', {
       const group = this.pickProfileGroups.find(g => g.facilityId === facilityId);
       if (!group) return;
 
-      const activeProfile = group.profiles?.find((p: any) => p.statusId === 'PICK_PROF_ACTIVE') || group.profiles?.[0];
+      const activeProfile = group.profiles?.find((p: any) => p.statusId === 'PICK_PROF_ACTIVE');
       if (!activeProfile) return;
 
       const filters = activeProfile.pickProfileFilters || [];
-      const hasSortFilters = filters.some((f: any) => f.conditionTypeEnumId === 'ENTCT_SORT_BY');
-      if (!hasSortFilters) {
-        const seedStore = useSeedStore() as any;
-        const sortParamEnums = seedStore.getEnumsByType('PP_SORT_PARAM_TYPE') || [];
-        sortParamEnums.forEach((e: any, idx: number) => {
-          filters.push({
-            profileId: activeProfile.profileId,
-            conditionSeqId: `0${idx + 1}`,
-            conditionTypeEnumId: 'ENTCT_SORT_BY',
-            fieldName: e.enumCode,
-            conditionOperator: 'equals',
-            fieldValue: 'ASC',
-            sequenceNum: (idx + 1) * 10
-          });
-        });
-      }
+
 
       updatedSortRules.forEach((rule, idx) => {
         const cond = filters.find((f: any) => f.fieldName === rule.id && f.conditionTypeEnumId === 'ENTCT_SORT_BY');
@@ -443,7 +418,7 @@ export const useCustomerServiceStore = defineStore('customerService', {
       const group = this.pickProfileGroups.find(g => g.facilityId === facilityId);
       if (!group) return;
 
-      const activeProfile = group.profiles?.find((p: any) => p.statusId === 'PICK_PROF_ACTIVE') || group.profiles?.[0];
+      const activeProfile = group.profiles?.find((p: any) => p.statusId === 'PICK_PROF_ACTIVE');
       if (!activeProfile) return;
 
       const filters = activeProfile.pickProfileFilters || [];
@@ -474,7 +449,7 @@ export const useCustomerServiceStore = defineStore('customerService', {
       const group = this.pickProfileGroups.find(g => g.facilityId === facilityId);
       if (!group) return;
 
-      const activeProfile = group.profiles?.find((p: any) => p.statusId === 'PICK_PROF_ACTIVE') || group.profiles?.[0];
+      const activeProfile = group.profiles?.find((p: any) => p.statusId === 'PICK_PROF_ACTIVE');
       if (!activeProfile) return;
 
       const filters = activeProfile.pickProfileFilters || [];
@@ -509,7 +484,7 @@ export const useCustomerServiceStore = defineStore('customerService', {
         return;
       }
 
-      const activeProfileBasic = group.profiles?.find((p: any) => p.statusId === 'PICK_PROF_ACTIVE') || group.profiles?.[0];
+      const activeProfileBasic = group.profiles?.find((p: any) => p.statusId === 'PICK_PROF_ACTIVE');
       if (!activeProfileBasic) {
         console.error('updateBatchSize: activeProfileBasic not found');
         return;
@@ -575,7 +550,7 @@ export const useCustomerServiceStore = defineStore('customerService', {
           return;
         }
 
-        const activeProfileBasic = group.profiles?.find((p: any) => p.statusId === 'PICK_PROF_ACTIVE') || group.profiles?.[0];
+        const activeProfileBasic = group.profiles?.find((p: any) => p.statusId === 'PICK_PROF_ACTIVE');
         if (!activeProfileBasic) {
           this.fulfillmentSyncData = null;
           return;
