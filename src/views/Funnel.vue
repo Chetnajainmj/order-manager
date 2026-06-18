@@ -449,6 +449,7 @@
 
 <script setup lang="ts">
 import {
+  IonButton,
   IonCard,
   IonCardContent,
   IonCardHeader,
