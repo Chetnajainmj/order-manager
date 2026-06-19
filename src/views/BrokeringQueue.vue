@@ -1,11 +1,12 @@
 <template>
-  <OrderQueueList
-    title="Brokering queue"
-    search-placeholder="Order, external ID, customer, email"
-    empty-title="No orders awaiting brokering"
-    empty-message="Approved orders awaiting brokering and items rejected by a facility will appear here."
-    :facility-ids="facilityIds"
-  >
+ <OrderQueueList
+   title="Brokering queue"
+   search-placeholder="Order, external ID, customer, email"
+   empty-title="No orders awaiting brokering"
+   empty-message="Approved orders awaiting brokering and items rejected by a facility will appear here."
+   :facility-ids="facilityIds"
+   :on-clear-filters="clearFacilityFilter"
+ >
     <template #filters>
       <ion-select
         v-model="selectedFacilityIds"
@@ -73,7 +74,9 @@ function dedupeAndSort(values: string[]) {
     String(left).localeCompare(String(right))
   );
 }
-
+function clearFacilityFilter() {
+  selectedFacilityIds.value = [ALL_FACILITY_OPTION_ID];
+}
 function normalizeFacilitySelection(event?: any) {
   const emittedValues = Array.isArray(event)
     ? event
