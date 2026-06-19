@@ -61,8 +61,7 @@
           v-for="order in orders"
           :key="order.orderId"
           button
-          :router-link="selectMode ? undefined : orderDetailLink(order)"
-          @click="toggleOrderSelection(order.orderId)"
+          @click="handleOrderRowClick(order)"
         >
           <ion-checkbox
             v-if="selectMode"
@@ -155,7 +154,8 @@ import {
   IonTitle,
   IonToast,
   IonToolbar,
-  alertController
+  alertController,
+  useIonRouter
 } from '@ionic/vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { DateTime } from 'luxon';
@@ -181,7 +181,17 @@ const store = useCustomerServiceStore();
 const orderStore = useOrderStore();
 const seedStore = useSeedStore();
 const route = router.currentRoute.value;
+const ionRouter = useIonRouter();
 const toastMessage = ref('');
+
+function handleOrderRowClick(order: WorkflowOrder) {
+  if (selectMode.value) {
+    toggleOrderSelection(order.orderId);
+    return;
+  }
+
+  ionRouter.push(orderDetailLink(order));
+}
 
 const filters = computed({
   get: () => store.filters[props.bucket],

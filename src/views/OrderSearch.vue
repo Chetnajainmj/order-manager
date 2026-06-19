@@ -87,9 +87,8 @@
         <ion-item
           v-for="order in searchResults"
           :key="order.id"
-          :button="selectMode"
-          :router-link="selectMode ? undefined : `/orders/${order.id}`"
-          @click="toggleOrderSelection(order.id)"
+          button
+          @click="handleItemClick(order, $event)"
         >
           <ion-checkbox
             v-if="selectMode"
@@ -160,6 +159,7 @@ import {
   IonToolbar,
   alertController,
   modalController,
+  useIonRouter
 } from '@ionic/vue';
 import { commonUtil, translate } from '@common';
 import { DateTime } from 'luxon';
@@ -185,7 +185,16 @@ const orderStore = useOrderStore();
 const orderDetailStore = useOrderDetailStore();
 const userStore = useUserStore();
 const seedStore = useSeedStore();
+const ionRouter = useIonRouter();
 const { searchQuery, searchFilters, searchSort, searchResults, searchTotal, loading, error, hasMore } = storeToRefs(orderStore);
+
+function handleItemClick(order: any, event: Event) {
+  if (selectMode.value) {
+    toggleOrderSelection(order.id);
+  } else {
+    ionRouter.push(`/orders/${order.id}`);
+  }
+}
 const debounceTimer = ref<ReturnType<typeof setTimeout>>();
 const selectMode = ref(false);
 const selectedOrderIds = ref<string[]>([]);
