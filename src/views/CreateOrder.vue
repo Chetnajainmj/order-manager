@@ -311,7 +311,26 @@ const isItemInOrder = computed(() => orderForm.value.lineItems.some((lineItem: a
 
 let timeoutId: any = null;
 const productSearchCount = ref(0);
-const facilities = ref([]) as any
+const facilities = computed(() => {
+  const productStoreId = useProductStore().getCurrentProductStore?.productStoreId;
+  if (!productStoreId) return [];
+
+  const storeFacilitiesMap = useSeedStore().productStoreFacilitiesByStoreId[productStoreId]?.byId;
+  if (!storeFacilitiesMap) return [];
+
+  const storeFacilities = Object.values(storeFacilitiesMap);
+
+  if (!orderForm.value.shopId) {
+    return storeFacilities;
+  }
+
+  const shopLocations = Object.values(useSeedStore().shopifyShopLocations?.byId || {});
+  const allowedFacilityIds = shopLocations
+    .filter((loc: any) => loc.shopId === orderForm.value.shopId)
+    .map((loc: any) => loc.facilityId);
+
+  return storeFacilities.filter((facility: any) => allowedFacilityIds.includes(facility.facilityId));
+});
 
 const getProduct = (productId: string) => useProductCacheStore().getProduct(productId);
 
@@ -368,6 +387,15 @@ watch(queryString, (value) => {
   }, 800);
 }, { deep: true });
 
+watch(() => orderForm.value.shopId, () => {
+  if (orderForm.value.facilityId) {
+    const isValid = facilities.value.some((f: any) => f.facilityId === orderForm.value.facilityId);
+    if (!isValid) {
+      orderForm.value.facilityId = '';
+    }
+  }
+});
+
 onMounted(async () => {
   fetchCurrencies();
   try {
@@ -375,7 +403,6 @@ onMounted(async () => {
     shopsList.value = await getShopifyShops({
       productStoreId
     });
-    facilities.value = Object.values(useSeedStore().productStoreFacilitiesByStoreId[productStoreId].byId)
   } catch (err: any) {
     commonUtil.showToast(`${translate("Failed to load Shopify shops:")} ${err.message || err}`);
   }
