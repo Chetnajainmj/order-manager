@@ -619,7 +619,7 @@ async function submitOrder() {
 
   for (let i = 0; i < form.lineItems.length; i++) {
     const item = form.lineItems[i];
-    if (!item.sku || !item.title) {
+    if (!item.sku && !item.title) {
       commonUtil.showToast(translate("Line item {index} has missing SKU or Title.", { index: i + 1 }));
       return;
     }
