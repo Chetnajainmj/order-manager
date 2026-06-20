@@ -377,7 +377,7 @@ onMounted(async () => {
     });
     facilities.value = Object.values(useSeedStore().productStoreFacilitiesByStoreId[productStoreId].byId)
   } catch (err: any) {
-    commonUtil.showToast(translate("Failed to load Shopify shops: " + (err.message || err)));
+    commonUtil.showToast(`${translate("Failed to load Shopify shops:")} ${err.message || err}`);
   }
 });
 
@@ -620,15 +620,15 @@ async function submitOrder() {
   for (let i = 0; i < form.lineItems.length; i++) {
     const item = form.lineItems[i];
     if (!item.sku && !item.title) {
-      commonUtil.showToast(translate(`Line item ${i + 1} has missing SKU or Title.`));
+      commonUtil.showToast(translate("Line item {index} has missing SKU or Title.", { index: i + 1 }));
       return;
     }
     if (item.quantity <= 0) {
-      commonUtil.showToast(translate(`Line item ${i + 1} must have a quantity greater than 0.`));
+      commonUtil.showToast(translate("Line item {index} must have a quantity greater than 0.", { index: i + 1 }));
       return;
     }
     if (item.price < 0) {
-      commonUtil.showToast(translate(`Line item ${i + 1} cannot have a negative price.`));
+      commonUtil.showToast(translate("Line item {index} cannot have a negative price.", { index: i + 1 }));
       return;
     }
   }
@@ -690,8 +690,8 @@ async function submitOrder() {
     }
   } catch (err: any) {
     emitter.emit('dismissLoader');
-    const errMsg = err?.message || 'Error occurred while creating Shopify order.';
-    await commonUtil.showToast(translate(errMsg));
+    const errMsg = err?.message || translate('Error occurred while creating Shopify order.');
+    await commonUtil.showToast(err?.message ? `${translate('Failed to create Shopify order:')} ${errMsg}` : errMsg);
   }
 }
 
