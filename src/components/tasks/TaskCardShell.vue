@@ -79,7 +79,7 @@
       </div>
     </div>
 
-    <ion-item lines="none" v-if="$slots.actions || $slots['actions-end']">
+    <ion-item class="task-actions" lines="none" v-if="$slots.actions || $slots['actions-end']">
       <slot name="actions" />
       <div v-if="$slots['actions-end']" class="task-card-actions-end">
         <slot name="actions-end" />
@@ -185,6 +185,10 @@ async function copyChipLabel() {
 .task-card-actions-end {
   flex: 1 1 260px;
   max-width: 360px;
+}
+
+.task-actions {
+  border-block-start: var(--border-medium);
 }
 
 @media (max-width: 640px) {
